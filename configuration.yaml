@@ -1,4 +1,4 @@
-sensors:
+sensor:
   - platform: template
     sensors:
       latest_lightning_strike_entity_id:
