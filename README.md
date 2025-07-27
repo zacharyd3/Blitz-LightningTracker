@@ -15,7 +15,7 @@ A Home Assistant blueprint that sends rich notifications with maps when lightnin
 
 ### Required:
 - **Home Assistant** with mobile app installed
-- **Blitzortung Lightning Detector** integration configured
+- [**Blitzortung Lightning Detector**](https://github.com/mrk-its/homeassistant-blitzortung) integration configured
 - The following Blitzortung sensors:
   - Distance sensor (e.g., `sensor.home_lightning_distance`)
   - Azimuth sensor (e.g., `sensor.home_lightning_azimuth`)
