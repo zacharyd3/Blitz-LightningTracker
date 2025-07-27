@@ -10,7 +10,7 @@ blueprint:
     notification_title:
       name: Notification Title
       description: Title for the notification
-      default: "⚡ Lightning Strike Nearby!"
+      default: "Lightning Strike Nearby!"
       selector:
         text:
     max_distance:
@@ -41,21 +41,21 @@ blueprint:
       default: sensor.latest_lightning_strike_latitude
       selector:
         entity:
-          domain: sensor
+          integration: template
     lightning_longitude_sensor:
       name: Lightning Longitude Sensor
       description: Sensor that reports lightning strike longitude coordinates
       default: sensor.latest_lightning_strike_longitude
       selector:
         entity:
-          domain: sensor
+          integration: template
     lightning_area_sensor:
       name: Lightning Area Sensor
       description: Sensor that reports the area/location name of lightning strike
       default: sensor.latest_lightning_strike_area
       selector:
         entity:
-          domain: sensor
+          integration: rest
     notify_device:
       name: Mobile Device
       description: Select a phone or tablet with the mobile app installed
@@ -84,9 +84,15 @@ blueprint:
           default: false
           selector:
             boolean:
+        show_device_location:
+          name: Show Device Location on Map
+          description: Show your device's location as a blue pin on the map image
+          default: true
+          selector:
+            boolean:
         cooldown_minutes:
           name: Cooldown Period (minutes)
-          description: Minimum time between notifications to avoid spam
+          description: Minimum time between notifications to avoid spam. The minimum is capped at 1 minute due to ensuring to 
           default: 1.5
           selector:
             number:
@@ -96,7 +102,7 @@ blueprint:
               unit_of_measurement: minutes
         
 
-alias: "⚡ Lightning Nearby - Blueprint"
+alias: "⚡ Lightning Nearby - Blitz-LightningTracker"
 description: "Notify if lightning strikes within specified distance"
 use_blueprint:
   path: lightning_notification.yaml
@@ -119,9 +125,14 @@ actions:
       input_lightning_longitude_sensor: !input lightning_longitude_sensor
       raw_device: !input notify_device
       input_notify_device: "{{ 'notify.mobile_app_' ~ (device_attr(raw_device, 'name') | lower | replace(' ', '_') | replace(\"'\", '') | replace(\"'\", '') | replace('`', '') | replace('\"', '') | trim) }}"
+      device_tracker_entity: "{{ device_entities(raw_device) | select('match', 'device_tracker') | first }}"
+      device_latitude: "{{ state_attr(device_tracker_entity, 'latitude') }}"
+      device_longitude: "{{ state_attr(device_tracker_entity, 'longitude') }}"
       input_notification_title: !input notification_title
       input_google_maps_api_key: !input google_maps_api_key
       input_include_map_image: !input include_map_image
+      input_show_device_location: !input show_device_location
+
   - action: homeassistant.update_entity
     metadata: {}
     data:
@@ -161,14 +172,9 @@ actions:
               states(input_lightning_longitude_sensor) }}
         image: >
           {%- if input_include_map_image and input_google_maps_api_key != "" -%}
-          https://maps.googleapis.com/maps/api/staticmap?center={{
-          states(input_lightning_latitude_sensor) }},{{
-          states(input_lightning_longitude_sensor)
-          }}&zoom=13&size=400x200&markers=color:yellow%7Csize:mid%7C{{
-          states(input_lightning_latitude_sensor) }},{{
-          states(input_lightning_longitude_sensor)
-          }}&key={{ input_google_maps_api_key }}
+          https://maps.googleapis.com/maps/api/staticmap?zoom=auto&size=400x200&markers=color:yellow%7Csize:mid%7C{{states(input_lightning_latitude_sensor)}},{{states(input_lightning_longitude_sensor)}}{% if input_show_device_location %}&markers=color:blue%7Csize:mid%7C{{device_latitude}},{{device_longitude}}{% endif %}&key={{ input_google_maps_api_key }}
           {%- endif -%}
+
   - delay:
       minutes: !input cooldown_minutes
 
