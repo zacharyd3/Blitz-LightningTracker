@@ -35,30 +35,70 @@ A Home Assistant blueprint that sends rich notifications with maps when lightnin
 ### Method 1: Direct Import (Easiest)
 [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fzacharyd3%2FBlitz-LightningTracker%2Fblob%2Fmain%2Flightning_tracker.yaml)
 
+2. **Add Required Sensors** (choose your method):
+
+   **📁 If you have a separate `sensors.yaml` file:**
+   - Download [`sensors.yaml`](sensors.yaml) 
+   - Copy the contents and add them to your existing `sensors.yaml` file
+
+   **⚙️ If you use `configuration.yaml` with existing yaml sensors:**
+   - Download [`sensors.yaml`](sensors.yaml)
+   - Copy the contents and add them under your existing `sensor:` section in `configuration.yaml`
+
+   **🆕 If you've never added YAML sensors before:**
+   - Download [`configuration.yaml`](configuration.yaml)
+   - Copy the contents and add them to the end of your existing `configuration.yaml`
+
+3. **Restart Home Assistant** to load the new sensors
+4. **Configure the blueprint** with your Blitzortung sensors and mobile device
+
 ### Method 2: Manual Installation
-1. Download [`lightning_notification.yaml`](lightning_notification.yaml)
+1. Download [`lightning_tracker.yaml`](lightning_tracker.yaml)
 2. Copy to `/config/blueprints/automation/lightning_notification.yaml`
-3. Restart Home Assistant or reload automations
-4. Find the blueprint in **Settings** > **Automations & Scenes** > **Blueprints**
+3. Proceed to follow steps 2 - 4 above.
 
 ## ⚙️ Configuration
 
 ### Required Settings:
 - **Lightning Distance Sensor** - Your Blitzortung distance sensor
 - **Lightning Azimuth Sensor** - Your Blitzortung direction sensor
-- **Lightning Area Sensor** - Sensor showing strike location name
-- **Lightning Latitude Sensor** - Strike latitude coordinates
-- **Lightning Longitude Sensor** - Strike longitude coordinates
+- **Lightning Area Sensor** - Sensor showing strike location name (Provided in sensors.yaml)
+- **Lightning Latitude Sensor** - Strike latitude coordinates (Provided in sensors.yaml)
+- **Lightning Longitude Sensor** - Strike longitude coordinates (Provided in sensors.yaml)
 - **Mobile Device** - Select from dropdown of mobile app devices
 - **Maximum Distance** - Distance in km to trigger notifications (default: 7.5km)
 
 ### Optional Settings:
-- **Google Maps API Key** - For static map images (secure password field)
-- **Notification Title** - Customize notification title
+- **Google Maps API Key** - For static map images
 - **Include Map Image** - Toggle map images on/off
 - **Cooldown Period** - Minutes between notifications (default: 1.5 min)
 
+## 🔧 Blitzortung Integration Setup
+
+If you haven't set up Blitzortung yet:
+
+1. In Home Assistant: **Settings** > **Devices & Services** > **Add Integration**
+2. Search for "Blitzortung Lightning Detector"
+3. Configure with your location coordinates
+4. Wait for sensors to populate with data
+
 ## 🛠️ Troubleshooting
+
+### REST Sensor Not Working?
+- Check that the coordinate sensors have valid data (not 0 or unknown)
+- Verify internet connection for OpenStreetMap Nominatim API calls
+- The area sensor updates every hour (`scan_interval: 3600`) to avoid API rate limits
+- **Change the User-Agent** in the REST sensor to your name/project
+
+### Missing Sensors Error?
+- **Most common issue!** Make sure you've created the additional sensors in `configuration.yaml`
+- Restart Home Assistant after adding sensors
+- Check **Developer Tools > States** to verify sensors exist and have data
+
+### Sensors Have Different Names?
+- Your Blitzortung sensors might have different names than the examples
+- Check **Developer Tools > States** for entities starting with `sensor.blitzortung_`
+- Update the template sensors to match your actual entity names
 
 ### No Map Images?
 - Verify your Google Maps API key is correct
