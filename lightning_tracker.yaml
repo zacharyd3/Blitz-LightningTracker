@@ -1,0 +1,175 @@
+blueprint:
+  name: ⚡ Blitz-LightningTracker
+  description: |
+    Send a notification with map when lightning strikes within a specified distance.
+    Designed specifically for the Blitzortung Lightning Detector integration.
+    Includes strike location, direction, and interactive map view.
+  domain: automation
+  source_url: https://github.com/your-username/home-assistant-blueprints/blob/main/lightning_notification.yaml
+  input:
+    notification_title:
+      name: Notification Title
+      description: Title for the notification
+      default: "⚡ Lightning Strike Nearby!"
+      selector:
+        text:
+    max_distance:
+      name: Maximum Distance (km)
+      description: Maximum distance in kilometers to trigger notification
+      default: 7.5
+      selector:
+        number:
+          min: 1
+          max: 50
+          step: 0.5
+          unit_of_measurement: km
+    lightning_distance_sensor:
+      name: Lightning Distance Sensor
+      description: Blitzortung distance sensor (usually ends with '_distance')
+      selector:
+        entity:
+          integration: blitzortung
+    lightning_azimuth_sensor:
+      name: Lightning Azimuth Sensor  
+      description: Blitzortung azimuth/direction sensor (usually ends with '_azimuth')
+      selector:
+        entity:
+          integration: blitzortung
+    lightning_latitude_sensor:
+      name: Lightning Latitude Sensor
+      description: Sensor that reports lightning strike latitude coordinates
+      default: sensor.latest_lightning_strike_latitude
+      selector:
+        entity:
+          domain: sensor
+    lightning_longitude_sensor:
+      name: Lightning Longitude Sensor
+      description: Sensor that reports lightning strike longitude coordinates
+      default: sensor.latest_lightning_strike_longitude
+      selector:
+        entity:
+          domain: sensor
+    lightning_area_sensor:
+      name: Lightning Area Sensor
+      description: Sensor that reports the area/location name of lightning strike
+      default: sensor.latest_lightning_strike_area
+      selector:
+        entity:
+          domain: sensor
+    notify_device:
+      name: Mobile Device
+      description: Select a phone or tablet with the mobile app installed
+      selector:
+        device:
+          integration: mobile_app
+    advanced:
+      name: Additional options
+      icon: mdi:cog
+      description: Configure optional Features
+      collapsed: true
+      input:
+        google_maps_api_key:
+          name: Google Maps API Key
+          description: |
+            Your Google Maps Static API key for map images.
+            Get one at: https://console.cloud.google.com/apis/credentials
+            Leave empty to disable map images.
+          default: ""
+          selector:
+            text:
+              type: password
+        include_map_image:
+          name: Include Map Image
+          description: Include a static map image in the notification (requires API key)
+          default: false
+          selector:
+            boolean:
+        cooldown_minutes:
+          name: Cooldown Period (minutes)
+          description: Minimum time between notifications to avoid spam
+          default: 1.5
+          selector:
+            number:
+              min: 0.5
+              max: 10
+              step: 0.5
+              unit_of_measurement: minutes
+        
+
+alias: "⚡ Lightning Nearby - Blueprint"
+description: "Notify if lightning strikes within specified distance"
+use_blueprint:
+  path: lightning_notification.yaml
+
+triggers:
+  - entity_id: !input lightning_distance_sensor
+    below: !input max_distance
+    trigger: numeric_state
+
+conditions:
+  - condition: template
+    value_template: "{{ states(input_lightning_distance_sensor) | is_number }}"
+
+actions:
+  - variables:
+      input_lightning_distance_sensor: !input lightning_distance_sensor
+      input_lightning_area_sensor: !input lightning_area_sensor
+      input_lightning_azimuth_sensor: !input lightning_azimuth_sensor
+      input_lightning_latitude_sensor: !input lightning_latitude_sensor
+      input_lightning_longitude_sensor: !input lightning_longitude_sensor
+      raw_device: !input notify_device
+      input_notify_device: "{{ 'notify.mobile_app_' ~ (device_attr(raw_device, 'name') | lower | replace(' ', '_') | replace(\"'\", '') | replace(\"'\", '') | replace('`', '') | replace('\"', '') | trim) }}"
+      input_notification_title: !input notification_title
+      input_google_maps_api_key: !input google_maps_api_key
+      input_include_map_image: !input include_map_image
+  - action: homeassistant.update_entity
+    metadata: {}
+    data:
+      entity_id: "{{ input_lightning_area_sensor }}"
+  - action: "{{ input_notify_device }}"
+    data:
+      title: "{{ input_notification_title }}"
+      message: >
+        Strike detected {{ states(input_lightning_distance_sensor) }} km away
+        in {{ states(input_lightning_area_sensor) }}. Approximate
+        direction: {{
+          iif(
+            (states(input_lightning_azimuth_sensor) | float) < 45 or
+            (states(input_lightning_azimuth_sensor) | float) >= 315,
+            'North',
+            iif(
+              (states(input_lightning_azimuth_sensor) | float) < 135,
+              'East',
+              iif(
+                (states(input_lightning_azimuth_sensor) | float) < 225,
+                'South',
+                'West'
+              )
+            )
+          )
+        }} of your location.
+      data:
+        notification_icon: mdi:flash
+        ttl: 0
+        priority: high
+        actions:
+          - action: URI
+            title: View on Map
+            uri: >-
+              https://maps.google.com/?q={{
+              states(input_lightning_latitude_sensor) }},{{
+              states(input_lightning_longitude_sensor) }}
+        image: >
+          {%- if input_include_map_image and input_google_maps_api_key != "" -%}
+          https://maps.googleapis.com/maps/api/staticmap?center={{
+          states(input_lightning_latitude_sensor) }},{{
+          states(input_lightning_longitude_sensor)
+          }}&zoom=13&size=400x200&markers=color:yellow%7Csize:mid%7C{{
+          states(input_lightning_latitude_sensor) }},{{
+          states(input_lightning_longitude_sensor)
+          }}&key={{ input_google_maps_api_key }}
+          {%- endif -%}
+  - delay:
+      minutes: !input cooldown_minutes
+
+mode: single
