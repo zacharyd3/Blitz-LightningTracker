@@ -56,6 +56,8 @@ A Home Assistant blueprint that sends rich notifications with maps when lightnin
 1. Download [`lightning_tracker.yaml`](lightning_tracker.yaml)
 2. Copy to `/config/blueprints/automation/lightning_notification.yaml`
 3. Proceed to follow steps 2 - 4 above.
+   
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/zacharyd3)
 
 ## ⚙️ Configuration
 
