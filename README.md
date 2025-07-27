@@ -19,7 +19,8 @@ A Home Assistant blueprint that sends rich notifications with maps when lightnin
 - The following Blitzortung sensors:
   - Distance sensor (e.g., `sensor.home_lightning_distance`)
   - Azimuth sensor (e.g., `sensor.home_lightning_azimuth`)
-- The following Helper Sensors (see github for templates):
+- The following Helper Sensors (see install instructions for a template):
+  - Latest Lightning Entity ID (e.g., `latest_lightning_strike_entity_id`)
   - Latitude sensor (e.g., `sensor.latest_lightning_strike_latitude`)
   - Longitude sensor (e.g., `sensor.latest_lightning_strike_longitude`)
   - Area sensor (e.g., `sensor.latest_lightning_strike_area`)
