@@ -119,8 +119,9 @@ actions:
       input_lightning_azimuth_sensor: !input lightning_azimuth_sensor
       input_lightning_latitude_sensor: !input lightning_latitude_sensor
       input_lightning_longitude_sensor: !input lightning_longitude_sensor
+      input_lightning_distance: "{{ states(input_lightning_distance_sensor) }}"
       raw_device: !input notify_device
-      input_notify_device: "{{ 'notify.mobile_app_' ~ (device_attr(raw_device, 'name') | lower | replace(' ', '_') | replace(\"'\", '') | replace(\"'\", '') | replace('`', '') | replace('\"', '') | trim) }}"
+      input_notify_device: "{{ 'notify.mobile_app_' ~ (device_attr(raw_device, 'name') | string | lower | replace(' ', '_') | replace(\"'\", '') | replace(\"'\", '') | replace('`', '') | replace('\"', '') | trim) }}"
       device_tracker_entity: "{{ device_entities(raw_device) | select('match', 'device_tracker') | first }}"
       device_latitude: "{{ state_attr(device_tracker_entity, 'latitude') }}"
       device_longitude: "{{ state_attr(device_tracker_entity, 'longitude') }}"
@@ -137,40 +138,21 @@ actions:
     data:
       title: "{{ input_notification_title }}"
       message: >
-        Strike detected {{ states(input_lightning_distance_sensor) }} km away
-        in {{ states(input_lightning_area_sensor) }}. Approximate
-        direction: {{
-          iif(
-            (states(input_lightning_azimuth_sensor) | float) < 45 or
-            (states(input_lightning_azimuth_sensor) | float) >= 315,
-            'North',
-            iif(
-              (states(input_lightning_azimuth_sensor) | float) < 135,
-              'East',
-              iif(
-                (states(input_lightning_azimuth_sensor) | float) < 225,
-                'South',
-                'West'
-              )
-            )
-          )
-        }} of your location.
+        Strike detected {{ input_lightning_distance }} km away
+        in {{ states(input_lightning_area_sensor) }}.
       data:
         notification_icon: mdi:flash
         ttl: 0
         priority: high
-        actions:
-          - action: URI
-            title: View on Map
-            uri: >-
-              https://maps.google.com/?q={{
-              states(input_lightning_latitude_sensor) }},{{
-              states(input_lightning_longitude_sensor) }}
+        clickAction: >-
+          https://maps.google.com/?q={{
+          states(input_lightning_latitude_sensor) }},{{
+          states(input_lightning_longitude_sensor) }}
         image: >
           {%- if input_include_map_image and input_google_maps_api_key != "" -%}
           https://maps.googleapis.com/maps/api/staticmap?zoom=auto&size=400x200&markers=color:yellow%7Csize:mid%7C{{states(input_lightning_latitude_sensor)}},{{states(input_lightning_longitude_sensor)}}{% if input_show_device_location %}&markers=color:blue%7Csize:mid%7C{{device_latitude}},{{device_longitude}}{% endif %}&key={{ input_google_maps_api_key }}
           {%- endif -%}
-
+  
   - delay:
       minutes: !input cooldown_minutes
 
