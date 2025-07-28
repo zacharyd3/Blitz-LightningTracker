@@ -68,6 +68,13 @@ blueprint:
       description: Configure optional Features
       collapsed: true
       input:
+        notification_channel:
+          name: Notification Channel
+          description: Notification channel for Android's notification system
+          default: ""
+          selector:
+            text:
+              type: text
         google_maps_api_key:
           name: Google Maps API Key
           description: |
@@ -126,6 +133,7 @@ actions:
       device_latitude: "{{ state_attr(device_tracker_entity, 'latitude') }}"
       device_longitude: "{{ state_attr(device_tracker_entity, 'longitude') }}"
       input_notification_title: !input notification_title
+      input_notification_channel: !input notification_channel
       input_google_maps_api_key: !input google_maps_api_key
       input_include_map_image: !input include_map_image
       input_show_device_location: !input show_device_location
@@ -142,6 +150,7 @@ actions:
         in {{ states(input_lightning_area_sensor) }}.
       data:
         notification_icon: mdi:flash
+        channel: "{{ input_notification_channel }}"
         ttl: 0
         priority: high
         clickAction: >-
