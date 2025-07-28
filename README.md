@@ -36,6 +36,9 @@ A Home Assistant blueprint that sends rich notifications with maps when lightnin
 ### Method 1: Direct Import (Easiest)
 [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fzacharyd3%2FBlitz-LightningTracker%2Fblob%2Fmain%2Flightning_tracker.yaml)
 
+   
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/zacharyd3)
+
 2. **Add Required Sensors** (choose your method):
 
    **📁 If you have a separate `sensors.yaml` file:**
@@ -57,8 +60,6 @@ A Home Assistant blueprint that sends rich notifications with maps when lightnin
 1. Download [`lightning_tracker.yaml`](lightning_tracker.yaml)
 2. Copy to `/config/blueprints/automation/lightning_notification.yaml`
 3. Proceed to follow steps 2 - 4 above.
-   
-[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/zacharyd3)
 
 ## ⚙️ Configuration
 
