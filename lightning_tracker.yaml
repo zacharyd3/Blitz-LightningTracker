@@ -75,6 +75,16 @@ blueprint:
           selector:
             text:
               type: text
+        notification_timeout:
+          name: Notification Timeout (minutes)
+          description: Time before Android automatically clears the notification
+          default: 10
+          selector:
+            number:
+              min: 1
+              max: 120
+              step: 1
+              unit_of_measurement: minutes
         google_maps_api_key:
           name: Google Maps API Key
           description: |
@@ -134,6 +144,7 @@ actions:
       device_longitude: "{{ state_attr(device_tracker_entity, 'longitude') }}"
       input_notification_title: !input notification_title
       input_notification_channel: !input notification_channel
+      input_notification_timeout: !input notification_timeout
       input_google_maps_api_key: !input google_maps_api_key
       input_include_map_image: !input include_map_image
       input_show_device_location: !input show_device_location
@@ -151,6 +162,7 @@ actions:
       data:
         notification_icon: mdi:flash
         channel: "{{ input_notification_channel }}"
+        timeout: "{{ input_notification_timeout * 60 | int }}"
         ttl: 0
         priority: high
         clickAction: >-
