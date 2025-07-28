@@ -1,5 +1,5 @@
 blueprint:
-  name: ⚡ Blitz-LightningTracker
+  name: Blitz-LightningTracker
   description: |
     Send a notification with map when lightning strikes within a specified distance.
     Designed specifically for the Blitzortung Lightning Detector integration.
@@ -111,10 +111,6 @@ triggers:
   - entity_id: !input lightning_distance_sensor
     below: !input max_distance
     trigger: numeric_state
-
-conditions:
-  - condition: template
-    value_template: "{{ states(input_lightning_distance_sensor) | is_number }}"
 
 actions:
   - variables:
