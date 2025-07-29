@@ -5,34 +5,12 @@
         value_template: >
           {% set strikes = states.geo_location | selectattr('entity_id', 'search', 'geo_location.lightning_strike_') | sort(attribute='last_updated', reverse=true) | list %}
           {{ strikes[0].entity_id if strikes else 'none' }}
-      
-      # Extract latitude from the latest strike
-      latest_lightning_strike_latitude:
-        friendly_name: "Latest Lightning Strike Latitude"
-        value_template: >
-          {% set id = states('sensor.latest_lightning_strike_entity_id') %}
-          {% if id != 'none' %}
-            {{ states[id].attributes.latitude }}
-          {% else %}
-            unknown
-          {% endif %}
-      
-      # Extract longitude from the latest strike
-      latest_lightning_strike_longitude:
-        friendly_name: "Latest Lightning Strike Longitude"
-        value_template: >
-          {% set id = states('sensor.latest_lightning_strike_entity_id') %}
-          {% if id != 'none' %}
-            {{ states[id].attributes.longitude }}
-          {% else %}
-            unknown
-          {% endif %}
 
   # Get real location names from coordinates
   - platform: rest
     name: Latest Lightning Strike Area
     resource_template: >-
-      https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={{ states('sensor.latest_lightning_strike_latitude') }}&lon={{ states('sensor.latest_lightning_strike_longitude') }}
+      https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={{ state_attr(states('sensor.latest_lightning_strike_entity_id'), 'latitude') }},{{ state_attr(states('sensor.latest_lightning_strike_entity_id'), 'longitude') }}
     headers:
       User-Agent: HomeAssistant/1.0
     value_template: >
