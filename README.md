@@ -80,13 +80,13 @@ A Home Assistant blueprint that sends rich notifications with maps when lightnin
    **📁 If you have a separate `sensors.yaml` file:**
    - Download [`sensors_beta.yaml`](sensors_beta.yaml) 
    - Copy the contents and add them to your existing `sensors.yaml` file
-   - Download [`input_number_beta.yaml`](input_number_beta.yaml)
+   - Download [`input_number.yaml`](input_number.yaml)
    - Copy the contents and add it to your existing `input_number.yaml` file
 
    **⚙️ If you use `configuration.yaml` with existing yaml sensors:**
    - Download [`sensors_beta.yaml`](sensors_beta.yaml)
    - Copy the contents and add them under your existing `sensor:` section in `configuration.yaml`
-   - Download [`input_number_beta.yaml`](input_number_beta.yaml)
+   - Download [`input_number.yaml`](input_number.yaml)
    - Copy the contents and add them under your existing `input_number:` section in `configuration.yaml`
 
    **🆕 If you've never added YAML sensors before:**
