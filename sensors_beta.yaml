@@ -1,0 +1,7 @@
+  - platform: template
+    sensors:
+      latest_lightning_strike_entity_id:
+        friendly_name: "Latest Lightning Strike Entity ID"
+        value_template: >
+          {% set strikes = states.geo_location | selectattr('entity_id', 'search', 'geo_location.lightning_strike_') | sort(attribute='last_updated', reverse=true) | list %}
+          {{ strikes[0].entity_id if strikes else 'none' }}
