@@ -1,0 +1,20 @@
+sensor:
+  - platform: template
+    sensors:
+      # Find latest strike
+      latest_lightning_strike_entity_id:
+        friendly_name: "Latest Lightning Strike Entity ID"
+        value_template: >
+          {% set strikes = states.geo_location | selectattr('entity_id', 'search', 'geo_location.lightning_strike_') | sort(attribute='last_updated', reverse=true) | list %}
+          {{ strikes[0].entity_id if strikes else 'none' }}
+    
+input_number:
+  # Track previously notified strike distance
+  lightning_last_distance:
+      name: Last Lightning Distance
+      initial: 1000
+      min: 0
+      max: 1000
+      step: 0.1
+      unit_of_measurement: "km"
+      mode: box
