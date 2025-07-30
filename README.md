@@ -66,6 +66,37 @@ A Home Assistant blueprint that sends rich notifications with maps when lightnin
 2. Copy to `/config/blueprints/automation/lightning_notification.yaml`
 3. Proceed to follow steps 2 - 4 above.
 
+### Method 3: Beta Installation
+**!! [ONLY USE THE BETA IF YOU'VE ALSO UPDATED TO MY INTEGRATION](https://github.com/zacharyd3/homeassistant-blitzortung) !!**
+<details>
+  <summary>I'm aware this is a beta build and I've updated</summary>
+  
+[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fzacharyd3%2FBlitz-LightningTracker%2Fblob%2Fmain%2Flightning_tracker_beta.yaml)
+
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/zacharyd3)
+
+2. **Add Required Sensors** (choose your method):
+
+   **📁 If you have a separate `sensors.yaml` file:**
+   - Download [`sensors_beta.yaml`](sensors_beta.yaml) 
+   - Copy the contents and add them to your existing `sensors.yaml` file
+   - Download [`input_number_beta.yaml`](input_number_beta.yaml)
+   - Copy the contents and add it to your existing `input_number.yaml` file
+
+   **⚙️ If you use `configuration.yaml` with existing yaml sensors:**
+   - Download [`sensors_beta.yaml`](sensors_beta.yaml)
+   - Copy the contents and add them under your existing `sensor:` section in `configuration.yaml`
+   - Download [`input_number_beta.yaml`](input_number_beta.yaml)
+   - Copy the contents and add them under your existing `input_number:` section in `configuration.yaml`
+
+   **🆕 If you've never added YAML sensors before:**
+   - Download [`configuration_beta.yaml`](configuration_beta.yaml)
+   - Copy the contents and add them to the end of your existing `configuration.yaml`
+
+3. **Restart Home Assistant** to load the new sensors
+4. **Configure the blueprint** with your Blitzortung sensors and mobile device
+</details>
+
 ## ⚙️ Configuration
 
 ### Required Settings:
