@@ -4,6 +4,7 @@ blueprint:
     Send a notification with map when lightning strikes within a specified distance.
     Designed specifically for the Blitzortung Lightning Detector integration.
     Includes strike location, direction, and interactive map view.
+    Automatically uses your system's configured units (km or miles).
   domain: automation
   source_url: https://github.com/zacharyd3/Blitz-LightningTracker/blob/main/lightning_tracker.yaml
   input:
@@ -147,6 +148,8 @@ actions:
       input_include_map_image: !input include_map_image
       input_show_device_location: !input show_device_location
       input_only_notify_closer_strikes: !input only_notify_closer_strikes
+      # Get the correct unit from the distance sensor
+      distance_unit: "{{ state_attr(input_lightning_distance_sensor, 'unit_of_measurement') | default('km') }}"
 
   # Update the strike area sensor
   - action: homeassistant.update_entity
@@ -159,7 +162,7 @@ actions:
     data:
       title: '{{ input_notification_title }}'
       message: >
-        Strike detected {{ input_lightning_distance }} km away in {{
+        Strike detected {{ input_lightning_distance }} {{ distance_unit }} away in {{
         states('sensor.latest_lightning_strike_area') }}.
       data:
         notification_icon: mdi:flash
