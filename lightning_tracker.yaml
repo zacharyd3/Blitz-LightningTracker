@@ -171,8 +171,7 @@ actions:
           https://maps.google.com/?q={{ state_attr(states('sensor.latest_lightning_strike_entity_id'), 'latitude') }},{{ state_attr(states('sensor.latest_lightning_strike_entity_id'), 'longitude') }}
         image: >
           {%- if input_include_map_image and input_google_maps_api_key != "" -%}
-          https://maps.googleapis.com/maps/api/staticmap?zoom=auto&size=400x200
-          &markers=color:yellow%7Csize:mid%7C{{ state_attr(states('sensor.latest_lightning_strike_entity_id'), 'latitude') }},{{ state_attr(states('sensor.latest_lightning_strike_entity_id'), 'longitude') }}
+          https://maps.googleapis.com/maps/api/staticmap?zoom=auto&size=400x200&markers=color:yellow%7Csize:mid%7C{{ state_attr(states('sensor.latest_lightning_strike_entity_id'), 'latitude') }},{{ state_attr(states('sensor.latest_lightning_strike_entity_id'), 'longitude') }}
           {%- if input_show_device_location -%}
           &markers=color:blue%7Csize:mid%7C{{ device_latitude }},{{ device_longitude }}
           {%- endif -%}
