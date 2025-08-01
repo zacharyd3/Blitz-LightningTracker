@@ -6,8 +6,7 @@ A Home Assistant blueprint that sends rich notifications with maps when lightnin
 
 - 🌩️ **Real-time lightning detection** - Get notified when strikes occur within your specified distance
 - 📍 **Interactive maps** - Static map images in notifications with yellow lightning-themed pins
-- 🧭 **Direction awareness** - Shows which direction the lightning struck (North/South/East/West)
-- 📱 **Mobile notifications** - Works with Home Assistant mobile app
+- 📱 **Mobile notifications** - Works with Home Assistant mobile app and allows for multiple targets
 - ⚙️ **Highly configurable** - Customize distance, cooldown, and notification content
 - 🗺️ **Google Maps integration** - Optional static map images (requires API key)
 
@@ -15,15 +14,13 @@ A Home Assistant blueprint that sends rich notifications with maps when lightnin
 
 ### Required:
 - **Home Assistant** with mobile app installed
-- [**Blitzortung Lightning Detector**](https://github.com/mrk-its/homeassistant-blitzortung) integration configured
+- [**My Custom Blitzortung Lightning Detector**](https://github.com/zacharyd3/homeassistant-blitzortung) integration configured
 - The following Blitzortung sensors:
   - Distance sensor (e.g., `sensor.home_lightning_distance`)
   - Azimuth sensor (e.g., `sensor.home_lightning_azimuth`)
+  - Area sensor (e.g., `sensor.home_lightning_area`)
 - The following Helper Sensors (see install instructions for a template):
   - Latest Lightning Entity ID sensor(e.g., `latest_lightning_strike_entity_id`)
-  - Latitude sensor (e.g., `sensor.latest_lightning_strike_latitude`)
-  - Longitude sensor (e.g., `sensor.latest_lightning_strike_longitude`)
-  - Area sensor (e.g., `sensor.latest_lightning_strike_area`)
   - Last Strike Distance helper (e.g., `input_number.lightning_last_distance`)
 
 ### Optional:
@@ -35,32 +32,6 @@ A Home Assistant blueprint that sends rich notifications with maps when lightnin
 ## 🚀 Installation
 
 **!! [ONLY USE THE BETA IF YOU'VE ALSO UPDATED TO MY INTEGRATION](https://github.com/zacharyd3/homeassistant-blitzortung) !!**
-  
-[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fzacharyd3%2FBlitz-LightningTracker%2Fblob%2Fmain%2Flightning_tracker_beta.yaml)
-
-[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/zacharyd3)
-
-2. **Add Required Sensors** (choose your method):
-
-   **📁 If you have a separate `sensors.yaml` file:**
-   - Download [`sensors_beta.yaml`](sensors_beta.yaml) 
-   - Copy the contents and add them to your existing `sensors.yaml` file
-   - Download [`input_number.yaml`](input_number.yaml)
-   - Copy the contents and add it to your existing `input_number.yaml` file
-
-   **⚙️ If you use `configuration.yaml` with existing yaml sensors:**
-   - Download [`sensors_beta.yaml`](sensors_beta.yaml)
-   - Copy the contents and add them under your existing `sensor:` section in `configuration.yaml`
-   - Download [`input_number.yaml`](input_number.yaml)
-   - Copy the contents and add them under your existing `input_number:` section in `configuration.yaml`
-
-   **🆕 If you've never added YAML sensors before:**
-   - Download [`configuration_beta.yaml`](configuration_beta.yaml)
-   - Copy the contents and add them to the end of your existing `configuration.yaml`
-
-3. **Restart Home Assistant** to load the new sensors
-4. **Configure the blueprint** with your Blitzortung sensors and mobile device
-</details>
   
 [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fzacharyd3%2FBlitz-LightningTracker%2Fblob%2Fmain%2Flightning_tracker_beta.yaml)
 
@@ -91,12 +62,11 @@ A Home Assistant blueprint that sends rich notifications with maps when lightnin
 
 ### Required Settings:
 - **Lightning Distance Sensor** - Your Blitzortung distance sensor
-- **Lightning Azimuth Sensor** - Your Blitzortung direction sensor
 - **Lightning Area Sensor** - Sensor showing strike location name (Provided in sensors.yaml)
-- **Lightning Latitude Sensor** - Strike latitude coordinates (Provided in sensors.yaml)
-- **Lightning Longitude Sensor** - Strike longitude coordinates (Provided in sensors.yaml)
 - **Mobile Device** - Select from dropdown of mobile app devices
 - **Maximum Distance** - Distance in km to trigger notifications (default: 7.5km)
+- **Notification Method** - Choose how to send notifications (Single Device, Multiple Devices, Custom Notify Service)
+- **Notification Title** - Title for the notification
 
 ### Optional Settings:
 - **Google Maps API Key** - For static map images
@@ -107,18 +77,11 @@ A Home Assistant blueprint that sends rich notifications with maps when lightnin
 
 If you haven't set up Blitzortung yet:
 
-1. In Home Assistant: **Settings** > **Devices & Services** > **Add Integration**
-2. Search for "Blitzortung Lightning Detector"
-3. Configure with your location coordinates
-4. Wait for sensors to populate with data
+1. Install [my custom version of the Blitzortung Integration](https://github.com/zacharyd3/homeassistant-blitzortung)
+2. Configure with your location coordinates
+3. Wait for sensors to populate with data
 
 ## 🛠️ Troubleshooting
-
-### REST Sensor Not Working?
-- Check that the coordinate sensors have valid data (not 0 or unknown)
-- Verify internet connection for OpenStreetMap Nominatim API calls
-- The area sensor updates every hour (`scan_interval: 3600`) to avoid API rate limits
-- **Change the User-Agent** in the REST sensor to your name/project
 
 ### Missing Sensors Error?
 - **Most common issue!** Make sure you've created the additional sensors in `configuration.yaml`
@@ -143,7 +106,7 @@ If you haven't set up Blitzortung yet:
 - Ensure Blitzortung integration is working and sensors have states
 - Check sensor names match the pattern: `sensor.*_lightning_*`
 
-## 🤝 Contributing
+## 🤝 [Contributing](https://buymeacoffee.com/zacharyd3)
 
 Found a bug or want to add features? 
 
