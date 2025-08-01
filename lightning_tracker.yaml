@@ -172,9 +172,9 @@ actions:
       # Build notification targets based on selected method
       notification_targets: >
         {%- if input_notification_method == 'single_device' -%}
-          ["notify.mobile_app_{{ device_attr(raw_device, 'name') | string | lower | replace(' ', '_') | replace(\"'\", '') | replace(\"'\", '') | replace('`', '') | replace('\"', '') | trim }}"]
+          ["notify.mobile_app_{{ device_attr(raw_device, 'name') | string | lower | replace(' ', '_') | replace("'", '') | replace('`', '') | replace('"', '') | trim }}"]
         {%- elif input_notification_method == 'multiple_devices' -%}
-          [{% for device in raw_devices %}"notify.mobile_app_{{ device_attr(device, 'name') | string | lower | replace(' ', '_') | replace(\"'\", '') | replace(\"'\", '') | replace('`', '') | replace('\"', '') | trim }}"{% if not loop.last %},{% endif %}{% endfor %}]
+          [{% for device in raw_devices %}"notify.mobile_app_{{ device_attr(device, 'name') | string | lower | replace(' ', '_') | replace("'", '') | replace('`', '') | replace('"', '') | trim }}"{% if not loop.last %},{% endif %}{% endfor %}]
         {%- else -%}
           ["{{ input_custom_notify_service }}"]
         {%- endif -%}
