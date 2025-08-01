@@ -6,7 +6,6 @@ A Home Assistant blueprint that sends rich notifications with maps when lightnin
 
 - 🌩️ **Real-time lightning detection** - Get notified when strikes occur within your specified distance
 - 📍 **Interactive maps** - Static map images in notifications with yellow lightning-themed pins
-- 🧭 **Direction awareness** - Shows which direction the lightning struck (North/South/East/West)
 - 📱 **Mobile notifications** - Works with Home Assistant mobile app
 - ⚙️ **Highly configurable** - Customize distance, cooldown, and notification content
 - 🗺️ **Google Maps integration** - Optional static map images (requires API key)
@@ -18,11 +17,8 @@ A Home Assistant blueprint that sends rich notifications with maps when lightnin
 - [**Blitzortung Lightning Detector**](https://github.com/mrk-its/homeassistant-blitzortung) integration configured
 - The following Blitzortung sensors:
   - Distance sensor (e.g., `sensor.home_lightning_distance`)
-  - Azimuth sensor (e.g., `sensor.home_lightning_azimuth`)
 - The following Helper Sensors (see install instructions for a template):
   - Latest Lightning Entity ID sensor(e.g., `latest_lightning_strike_entity_id`)
-  - Latitude sensor (e.g., `sensor.latest_lightning_strike_latitude`)
-  - Longitude sensor (e.g., `sensor.latest_lightning_strike_longitude`)
   - Area sensor (e.g., `sensor.latest_lightning_strike_area`)
   - Last Strike Distance helper (e.g., `input_number.lightning_last_distance`)
 
@@ -78,10 +74,7 @@ A Home Assistant blueprint that sends rich notifications with maps when lightnin
 
 ### Required Settings:
 - **Lightning Distance Sensor** - Your Blitzortung distance sensor
-- **Lightning Azimuth Sensor** - Your Blitzortung direction sensor
 - **Lightning Area Sensor** - Sensor showing strike location name (Provided in sensors.yaml)
-- **Lightning Latitude Sensor** - Strike latitude coordinates (Provided in sensors.yaml)
-- **Lightning Longitude Sensor** - Strike longitude coordinates (Provided in sensors.yaml)
 - **Mobile Device** - Select from dropdown of mobile app devices
 - **Maximum Distance** - Distance in km to trigger notifications (default: 7.5km)
 
