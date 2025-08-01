@@ -7,6 +7,8 @@ blueprint:
 
     Includes strike location, direction, and interactive map view.
 
+    Automatically uses your system''s configured units (km or miles).
+
     '
   domain: automation
   source_url: https://github.com/zacharyd3/Blitz-LightningTracker/blob/main/lightning_tracker.yaml
@@ -42,6 +44,19 @@ blueprint:
         entity:
           integration: blitzortung
           multiple: false
+    notification_method:
+      name: Notification Method
+      description: Choose how to send notifications
+      default: single_device
+      selector:
+        select:
+          options:
+            - label: Single Device
+              value: single_device
+            - label: Multiple Devices
+              value: multiple_devices
+            - label: Custom Notify Service
+              value: custom_service
     notify_device:
       name: Mobile Device
       description: Select a phone or tablet with the mobile app installed
@@ -49,6 +64,24 @@ blueprint:
         device:
           integration: mobile_app
           multiple: false
+    notify_devices:
+      name: Mobile Devices
+      description: Select multiple phones or tablets with the mobile app installed
+      default: []
+      selector:
+        device:
+          integration: mobile_app
+          multiple: true
+    custom_notify_service:
+      name: Custom Notify Service
+      description: 'Enter a custom notify service (e.g., notify.family_devices, notify.all_phones).
+
+        Must start with ''notify.''
+
+        '
+      default: "notify.family_devices"
+      selector:
+        text: {}
     advanced:
       name: Additional options
       icon: mdi:cog
@@ -144,15 +177,11 @@ actions:
     input_lightning_distance_sensor: !input lightning_distance_sensor
     input_lightning_distance: '{{ states(input_lightning_distance_sensor) }}'
     input_lightning_area_sensor: !input lightning_area_sensor
-    input_lightning_area:  '{{ states(input_lightning_area_sensor) }}'
+    input_lightning_area: '{{ states(input_lightning_area_sensor) }}'
+    input_notification_method: !input notification_method
     raw_device: !input notify_device
-    input_notify_device: '{{ ''notify.mobile_app_'' ~ (device_attr(raw_device, ''name'')
-      | string | lower | replace('' '', ''_'') | replace("''", '''') | replace("''",
-      '''') | replace(''`'', '''') | replace(''"'', '''') | trim) }}'
-    device_tracker_entity: '{{ device_entities(raw_device) | select(''match'', ''device_tracker'')
-      | first }}'
-    device_latitude: '{{ state_attr(device_tracker_entity, ''latitude'') }}'
-    device_longitude: '{{ state_attr(device_tracker_entity, ''longitude'') }}'
+    raw_devices: !input notify_devices
+    input_custom_notify_service: !input custom_notify_service
     input_notification_title: !input notification_title
     input_notification_channel: !input notification_channel
     input_notification_timeout: !input notification_timeout
@@ -160,30 +189,99 @@ actions:
     input_include_map_image: !input include_map_image
     input_show_device_location: !input show_device_location
     input_only_notify_closer_strikes: !input only_notify_closer_strikes
-- action: '{{ input_notify_device }}'
-  data:
-    title: '{{ input_notification_title }}'
-    message: 'Strike detected {{ input_lightning_distance }} km away in {{ input_lightning_area }}.
+    # Get the correct unit from the distance sensor
+    distance_unit: "{{ state_attr(input_lightning_distance_sensor, 'unit_of_measurement') | default('km') }}"
+    # Get device location for map (use first device if multiple selected)
+    primary_device: "{{ raw_device if input_notification_method == 'single_device' else raw_devices[0] if raw_devices|length > 0 else raw_device }}"
+    device_tracker_entity: '{{ device_entities(primary_device) | select(''match'', ''device_tracker'') | first }}'
+    device_latitude: '{{ state_attr(device_tracker_entity, ''latitude'') }}'
+    device_longitude: '{{ state_attr(device_tracker_entity, ''longitude'') }}'
+# Send notifications based on method
+- choose:
+  - conditions:
+    - condition: template
+      value_template: "{{ input_notification_method == 'single_device' }}"
+    sequence:
+    - action: "notify.mobile_app_{{ device_attr(raw_device, 'name') | string | lower | replace(' ', '_') | replace(\"'\", '') | replace(\"'\", '') | replace('`', '') | replace('\"', '') | trim }}"
+      data:
+        title: '{{ input_notification_title }}'
+        message: 'Strike detected {{ input_lightning_distance }} {{ distance_unit }} away in {{ input_lightning_area }}.
 
-      '
+          '
+        data:
+          notification_icon: mdi:flash
+          channel: '{{ input_notification_channel }}'
+          timeout: '{{ input_notification_timeout * 60 | int }}'
+          ttl: 0
+          priority: high
+          clickAction: https://maps.google.com/?q={{ state_attr(states('sensor.latest_lightning_strike_entity_id'),
+            'latitude') }},{{ state_attr(states('sensor.latest_lightning_strike_entity_id'),
+            'longitude') }}
+          image: '{%- if input_include_map_image and input_google_maps_api_key != "" -%}
+            https://maps.googleapis.com/maps/api/staticmap?zoom=auto&size=400x200 &markers=color:yellow%7Csize:mid%7C{{
+            state_attr(states(''sensor.latest_lightning_strike_entity_id''), ''latitude'')
+            }},{{ state_attr(states(''sensor.latest_lightning_strike_entity_id''), ''longitude'')
+            }} {%- if input_show_device_location -%} &markers=color:blue%7Csize:mid%7C{{
+            device_latitude }},{{ device_longitude }} {%- endif -%} &key={{ input_google_maps_api_key
+            }} {%- endif -%}
+
+            '
+  - conditions:
+    - condition: template
+      value_template: "{{ input_notification_method == 'multiple_devices' }}"
+    sequence:
+    - repeat:
+        for_each: "{{ raw_devices }}"
+        sequence:
+        - action: "notify.mobile_app_{{ device_attr(repeat.item, 'name') | string | lower | replace(' ', '_') | replace(\"'\", '') | replace(\"'\", '') | replace('`', '') | replace('\"', '') | trim }}"
+          data:
+            title: '{{ input_notification_title }}'
+            message: 'Strike detected {{ input_lightning_distance }} {{ distance_unit }} away in {{ input_lightning_area }}.
+
+              '
+            data:
+              notification_icon: mdi:flash
+              channel: '{{ input_notification_channel }}'
+              timeout: '{{ input_notification_timeout * 60 | int }}'
+              ttl: 0
+              priority: high
+              clickAction: https://maps.google.com/?q={{ state_attr(states('sensor.latest_lightning_strike_entity_id'),
+                'latitude') }},{{ state_attr(states('sensor.latest_lightning_strike_entity_id'),
+                'longitude') }}
+              image: '{%- if input_include_map_image and input_google_maps_api_key != "" -%}
+                https://maps.googleapis.com/maps/api/staticmap?zoom=auto&size=400x200 &markers=color:yellow%7Csize:mid%7C{{
+                state_attr(states(''sensor.latest_lightning_strike_entity_id''), ''latitude'')
+                }},{{ state_attr(states(''sensor.latest_lightning_strike_entity_id''), ''longitude'')
+                }} {%- if input_show_device_location -%} &markers=color:blue%7Csize:mid%7C{{
+                device_latitude }},{{ device_longitude }} {%- endif -%} &key={{ input_google_maps_api_key
+                }} {%- endif -%}
+
+                '
+  default:
+  - action: '{{ input_custom_notify_service }}'
     data:
-      notification_icon: mdi:flash
-      channel: '{{ input_notification_channel }}'
-      timeout: '{{ input_notification_timeout * 60 | int }}'
-      ttl: 0
-      priority: high
-      clickAction: https://maps.google.com/?q={{ state_attr(states('sensor.latest_lightning_strike_entity_id'),
-        'latitude') }},{{ state_attr(states('sensor.latest_lightning_strike_entity_id'),
-        'longitude') }}
-      image: '{%- if input_include_map_image and input_google_maps_api_key != "" -%}
-        https://maps.googleapis.com/maps/api/staticmap?zoom=auto&size=400x200 &markers=color:yellow%7Csize:mid%7C{{
-        state_attr(states(''sensor.latest_lightning_strike_entity_id''), ''latitude'')
-        }},{{ state_attr(states(''sensor.latest_lightning_strike_entity_id''), ''longitude'')
-        }} {%- if input_show_device_location -%} &markers=color:blue%7Csize:mid%7C{{
-        device_latitude }},{{ device_longitude }} {%- endif -%} &key={{ input_google_maps_api_key
-        }} {%- endif -%}
+      title: '{{ input_notification_title }}'
+      message: 'Strike detected {{ input_lightning_distance }} {{ distance_unit }} away in {{ input_lightning_area }}.
 
         '
+      data:
+        notification_icon: mdi:flash
+        channel: '{{ input_notification_channel }}'
+        timeout: '{{ input_notification_timeout * 60 | int }}'
+        ttl: 0
+        priority: high
+        clickAction: https://maps.google.com/?q={{ state_attr(states('sensor.latest_lightning_strike_entity_id'),
+          'latitude') }},{{ state_attr(states('sensor.latest_lightning_strike_entity_id'),
+          'longitude') }}
+        image: '{%- if input_include_map_image and input_google_maps_api_key != "" -%}
+          https://maps.googleapis.com/maps/api/staticmap?zoom=auto&size=400x200 &markers=color:yellow%7Csize:mid%7C{{
+          state_attr(states(''sensor.latest_lightning_strike_entity_id''), ''latitude'')
+          }},{{ state_attr(states(''sensor.latest_lightning_strike_entity_id''), ''longitude'')
+          }} {%- if input_show_device_location -%} &markers=color:blue%7Csize:mid%7C{{
+          device_latitude }},{{ device_longitude }} {%- endif -%} &key={{ input_google_maps_api_key
+          }} {%- endif -%}
+
+          '
 - service: input_number.set_value
   data:
     entity_id: input_number.lightning_last_distance
