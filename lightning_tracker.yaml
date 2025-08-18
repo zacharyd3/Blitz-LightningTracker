@@ -36,25 +36,6 @@ blueprint:
       selector:
         entity:
           integration: blitzortung
-    notification_method:
-      name: Notification Method
-      description: Choose how to send notifications
-      default: single_device
-      selector:
-        select:
-          options:
-            - label: Single Device
-              value: single_device
-            - label: Multiple Devices
-              value: multiple_devices
-            - label: Custom Notify Service
-              value: custom_service
-    notify_device:
-      name: Mobile Device
-      description: Select a phone or tablet with the mobile app installed
-      selector:
-        device:
-          integration: mobile_app
     notify_devices:
       name: Mobile Devices
       description: Select multiple phones or tablets with the mobile app installed
@@ -66,7 +47,7 @@ blueprint:
     custom_notify_service:
       name: Custom Notify Service
       description: |
-        Enter a custom notify service (e.g., notify.family_devices, notify.all_phones).
+        Enter one or more custom notify services (e.g., notify.family_devices, notify.all_phones).
         Must start with 'notify.'
       default: "notify.family_devices"
       selector:
@@ -165,21 +146,27 @@ actions:
   - variables:
       input_lightning_distance_sensor: !input lightning_distance_sensor
       input_lightning_distance: "{{ states(input_lightning_distance_sensor) }}"
-      input_notification_method: !input notification_method
-      raw_device: !input notify_device
       raw_devices: !input notify_devices
       input_custom_notify_service: !input custom_notify_service
       # Build notification targets based on selected method
       notification_targets: >
-        {%- if input_notification_method == 'single_device' -%}
-          ["notify.mobile_app_{{ device_attr(raw_device, 'name') | string | lower | replace(' ', '_') | replace("'", '') | replace('`', '') | replace('"', '') | trim }}"]
-        {%- elif input_notification_method == 'multiple_devices' -%}
-          [{% for device in raw_devices %}"notify.mobile_app_{{ device_attr(device, 'name') | string | lower | replace(' ', '_') | replace("'", '') | replace('`', '') | replace('"', '') | trim }}"{% if not loop.last %},{% endif %}{% endfor %}]
-        {%- else -%}
-          ["{{ input_custom_notify_service }}"]
-        {%- endif -%}
+          [
+            {% for device in raw_devices %}
+              "notify.mobile_app_{{ device_attr(device, 'name') | string | lower | replace(' ', '_') | replace("'", '') | replace('`', '') | replace('"', '') | trim }}"
+              {% if not loop.last %},{% endif %}
+            {% endfor %}
+
+            {% if raw_devices|length > 0 %}
+              ,
+            {% endif %}
+
+            {% for service in input_custom_notify_service.split(',') if service|trim != '' %}
+              "{{ service|trim }}"
+              {% if not loop.last %},{% endif %}
+            {% endfor %}
+          ]
       # Get device location for map (use first device if multiple selected)
-      primary_device: "{{ raw_device if input_notification_method == 'single_device' else raw_devices[0] if raw_devices|length > 0 else raw_device }}"
+      primary_device: "{{ raw_devices[0] if raw_devices|length > 0 else None }}"
       device_tracker_entity: "{{ device_entities(primary_device) | select('match', 'device_tracker') | first }}"
       device_latitude: "{{ state_attr(device_tracker_entity, 'latitude') }}"
       device_longitude: "{{ state_attr(device_tracker_entity, 'longitude') }}"
