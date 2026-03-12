@@ -30,8 +30,17 @@ blueprint:
       selector:
         entity:
           integration: blitzortung
+    lightning_distance_decimals:
+      name: Number of Decimal Places for Lightning Warning
+      description: Number of places after the decimal point to display
+      default: 2
+      selector:
+        number:
+          min: 0
+          step: 1
+          mode: box
     lightning_azimuth_sensor:
-      name: Lightning Azimuth Sensor  
+      name: Lightning Azimuth Sensor
       description: Blitzortung azimuth/direction sensor (usually ends with '_azimuth')
       selector:
         entity:
@@ -49,7 +58,7 @@ blueprint:
       description: |
         Enter one or more custom notify services (e.g., notify.family_devices, notify.all_phones).
         Must start with 'notify.'
-      default: "notify.family_devices"
+      default: ""
       selector:
         text:
     advanced:
@@ -113,7 +122,7 @@ blueprint:
               max: 10
               step: 0.5
               unit_of_measurement: minutes
-        
+
 
 alias: "⚡ Lightning Nearby - Blitz-LightningTracker"
 description: "Notify if lightning strikes within specified distance"
@@ -130,7 +139,7 @@ variables:
   input_lightning_distance_sensor: !input lightning_distance_sensor
 
 conditions:
-  
+
 
 actions:
   - condition: template
@@ -144,8 +153,14 @@ actions:
       {%- endif -%}
   # Setup base variables (also nice for troubleshooting)
   - variables:
+      input_lightning_distance_decimals: !input lightning_distance_decimals
       input_lightning_distance_sensor: !input lightning_distance_sensor
-      input_lightning_distance: "{{ states(input_lightning_distance_sensor) }}"
+      input_lightning_distance: >
+        {%- if input_lightning_distance_decimals -%}
+          "{{ states(input_lightning_distance_sensor) | round(input_lightning_distance_decimals) }}"
+        {%- else -%}
+          "{{ states(input_lightning_distance_sensor) }}"
+        {%- endif -%}
       raw_devices: !input notify_devices
       input_custom_notify_service: !input custom_notify_service
       # Build notification targets based on selected method
@@ -218,7 +233,7 @@ actions:
     data:
       entity_id: input_number.lightning_last_distance
       value: "{{ input_lightning_distance | float }}"
-  
+
   - delay:
       minutes: !input cooldown_minutes
 
