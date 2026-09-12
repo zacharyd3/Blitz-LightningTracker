@@ -116,22 +116,51 @@ blueprint:
               max: 120
               step: 1
               unit_of_measurement: minutes
-        google_maps_api_key:
-          name: Google Maps API Key
-          description: |
-            Your Google Maps Static API key for map images.
-            Get one at: https://console.cloud.google.com/apis/credentials
-            Leave empty to disable map images.
-          default: ""
-          selector:
-            text:
-              type: password
         include_map_image:
           name: Include Map Image
           description: Include a static map image in the notification (requires an API key).
           default: false
           selector:
             boolean:
+        map_provider:
+          name: Static Map Provider
+          description: >
+            Which service renders the map image. Google requires a Google Cloud
+            billing account (a card on file) even inside the free tier; Geoapify
+            does not, and its free tier is generous for this. Choose Custom to
+            paste any other provider's URL yourself.
+          default: google
+          selector:
+            select:
+              options:
+                - label: Google Maps Static API
+                  value: google
+                - label: Geoapify Static Maps
+                  value: geoapify
+                - label: Custom URL template
+                  value: custom
+        google_maps_api_key:
+          name: Static Map API Key
+          description: |
+            The API key for the provider selected above.
+            Google: https://console.cloud.google.com/apis/credentials
+            Geoapify: https://myprojects.geoapify.com (no card required)
+            Leave empty to disable map images.
+          default: ""
+          selector:
+            text:
+              type: password
+        custom_map_url:
+          name: Custom Map URL Template
+          description: >
+            Only used when the provider is set to Custom. Paste a URL with the
+            placeholders {lat}, {lon}, {device_lat}, {device_lon} and {key} - each
+            is substituted before the notification is sent. The device
+            placeholders are only filled when "Show Device Location on Map" is on
+            and the device has a known position.
+          default: ""
+          selector:
+            text:
         show_device_location:
           name: Show Device Location on Map
           description: >
@@ -253,6 +282,8 @@ actions:
       notification_channel: !input notification_channel
       notification_timeout: !input notification_timeout
       google_maps_api_key: !input google_maps_api_key
+      map_provider: !input map_provider
+      custom_map_url: !input custom_map_url
       include_map_image: !input include_map_image
       show_device_location: !input show_device_location
       notify_devices: !input notify_devices
@@ -331,11 +362,48 @@ actions:
           https://www.google.com/maps/search/?api=1&query={{ strike_lat }},{{ strike_lon }}
         {%- endif -%}
 
-      # Google Static Maps: with two markers the API auto-fits the viewport, so no
-      # zoom/center is sent. With a single marker an explicit center+zoom is required.
-      # ("zoom=auto" is not a valid value and makes the API return HTTP 400.)
+      # Bounding box fitting both pins, padded so neither sits on the edge.
+      # Geoapify has no auto-fit-to-markers mode, so the box is computed here.
+      # The "rect:" prefix is part of the value on purpose: a bare
+      # "20.8,51.9,21.7,52.3" is a valid Python tuple literal, and Home Assistant
+      # renders templates to native types - it would arrive as a tuple and be
+      # interpolated into the URL as "(20.8, 51.9, ...)", parens and all.
+      map_bbox: >-
+        {%- if has_strike_coords and has_device_coords -%}
+          {%- set lats = [strike_lat | float, device_lat | float] -%}
+          {%- set lons = [strike_lon | float, device_lon | float] -%}
+          {%- set pad = [(lats | max - lats | min), (lons | max - lons | min)] | max * 0.25 -%}
+          {%- set pad = pad if pad > 0.01 else 0.01 -%}
+          rect:{{ [(lons | min - pad) | round(5), (lats | min - pad) | round(5),
+              (lons | max + pad) | round(5), (lats | max + pad) | round(5)] | join(',') }}
+        {%- endif -%}
+
       map_image_url: >-
-        {%- if include_map_image and google_maps_api_key and has_strike_coords -%}
+        {%- if not (include_map_image and has_strike_coords) -%}
+        {%- elif map_provider == 'custom' -%}
+          {{ custom_map_url
+             | replace('{device_lat}', device_lat | string)
+             | replace('{device_lon}', device_lon | string)
+             | replace('{lat}', strike_lat | string)
+             | replace('{lon}', strike_lon | string)
+             | replace('{key}', google_maps_api_key) }}
+        {%- elif not google_maps_api_key -%}
+        {%- elif map_provider == 'geoapify' -%}
+          {#- Geoapify takes lonlat (longitude first), the opposite of Google. -#}
+          {%- set base = 'https://maps.geoapify.com/v1/staticmap?style=osm-bright&width=800&height=500' -%}
+          {%- set strike_pin = 'lonlat:' ~ strike_lon ~ ',' ~ strike_lat
+                ~ ';type:awesome;color:%23ffcc00;size:large' -%}
+          {%- if has_device_coords -%}
+            {%- set device_pin = 'lonlat:' ~ device_lon ~ ',' ~ device_lat
+                  ~ ';type:awesome;color:%232a7fff;size:medium' -%}
+            {{ base }}&area={{ map_bbox }}&marker={{ strike_pin }}%7C{{ device_pin }}&apiKey={{ google_maps_api_key }}
+          {%- else -%}
+            {{ base }}&center=lonlat:{{ strike_lon }},{{ strike_lat }}&zoom=12&marker={{ strike_pin }}&apiKey={{ google_maps_api_key }}
+          {%- endif -%}
+        {%- else -%}
+          {#- Google auto-fits the viewport when two markers are given, so no
+              zoom/center is sent. One marker needs an explicit center+zoom.
+              ("zoom=auto" is not valid and makes the API return HTTP 400.) -#}
           {%- set base = 'https://maps.googleapis.com/maps/api/staticmap?size=640x400&scale=2' -%}
           {%- set strike_pin = '&markers=color:yellow%7Csize:mid%7Clabel:L%7C'
                 ~ strike_lat ~ ',' ~ strike_lon -%}
