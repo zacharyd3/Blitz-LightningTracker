@@ -4,29 +4,34 @@ A Home Assistant blueprint that sends rich notifications with maps when lightnin
 
 ## ✨ Features
 
-- 🌩️ **Real-time lightning detection** - Get notified when strikes occur within your specified distance
-- 📍 **Interactive maps** - Static map images in notifications with yellow lightning-themed pins
-- 📱 **Mobile notifications** - Works with Home Assistant mobile app
-- ⚙️ **Highly configurable** - Customize distance, cooldown, and notification content
-- 🗺️ **Google Maps integration** - Optional static map images (requires API key)
+- 🌩️ **Real-time lightning detection** - Get notified on every strike inside your chosen distance, not just the first one of a storm
+- 🧭 **Distance + direction** - "Strike detected 4.2 km away to the NE in Springfield"
+- 📍 **Interactive maps** - Tap the notification to open the strike in Google Maps
+- 🗺️ **Google Maps integration** - Optional static map image, with your own device pinned next to the strike
+- 📱 **Mobile notifications** - Any number of phones/tablets, plus your own notify groups
+- ⚙️ **Highly configurable** - Distance, cooldown, Android channel/timeout, "only closer strikes"
 
 ## 📋 Prerequisites
 
 ### Required:
-- **Home Assistant** with mobile app installed
+- **Home Assistant 2024.10 or newer** with the companion app installed
 - [**Blitzortung Lightning Detector**](https://github.com/mrk-its/homeassistant-blitzortung) integration configured
-- The following Blitzortung sensors:
-  - Distance sensor (e.g., `sensor.home_lightning_distance`)
-- The following Helper Sensors (see install instructions for a template):
-  - Latest Lightning Entity ID sensor(e.g., `latest_lightning_strike_entity_id`)
-  - Area sensor (e.g., `sensor.latest_lightning_strike_area`)
-  - Last Strike Distance helper (e.g., `input_number.lightning_last_distance`)
+  (or [the fork](https://github.com/zacharyd3/homeassistant-blitzortung), which can follow a device tracker instead of a fixed location)
+- A Blitzortung **distance** sensor (e.g. `sensor.home_lightning_distance`)
 
-### Optional:
-- **Google Maps Static API key** - For map images in notifications
+### Optional (but recommended):
+- **Azimuth sensor** (e.g. `sensor.home_lightning_azimuth`) - adds the compass direction to the message
+- **Area sensor** - adds the place name to the message. Either:
+  - `sensor.latest_lightning_strike_area` from the bundled [`sensors.yaml`](sensors.yaml), **or**
+  - `sensor.<name>_lightning_area` if your Blitzortung integration provides one (the fork does)
+- **`sensor.latest_lightning_strike_entity_id`** from [`sensors.yaml`](sensors.yaml) - only used as a fallback for the map coordinates if your distance sensor has no `lat`/`lon` attributes
+- **`input_number.lightning_last_distance`** from [`input_number.yaml`](input_number.yaml) - only needed if you turn on *Only Notify for Closer Strikes*
+- **Google Maps Static API key** - for map images in notifications
   - Get one at: https://console.cloud.google.com/apis/credentials
   - Enable "Maps Static API"
   - Free tier should be more than enough
+
+> **Units:** the blueprint uses whatever unit your distance sensor reports. If Home Assistant is set to imperial, the sensor reports miles, so **Maximum Distance** is in miles too.
 
 ## 🚀 Installation
 
@@ -36,7 +41,7 @@ A Home Assistant blueprint that sends rich notifications with maps when lightnin
    
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/zacharyd3)
 
-2. **Add Required Sensors** (choose your method):
+2. **Add the helper sensors** (skip the area/entity-id sensors if your integration already provides an area sensor):
 
    **📁 If you have a separate `sensors.yaml` file:**
    - Download [`sensors.yaml`](sensors.yaml) 
@@ -54,13 +59,15 @@ A Home Assistant blueprint that sends rich notifications with maps when lightnin
    - Download [`configuration.yaml`](configuration.yaml)
    - Copy the contents and add them to the end of your existing `configuration.yaml`
 
-3. **Restart Home Assistant** to load the new sensors
-4. **Configure the blueprint** with your Blitzortung sensors and mobile device
+3. **Edit the `User-Agent`** in the REST sensor to something that identifies you - Nominatim blocks generic user agents
+4. **Restart Home Assistant** to load the new sensors
+5. **Configure the blueprint** with your Blitzortung sensors and mobile device
 
 ### Method 2: Manual Installation
 1. Download [`lightning_tracker.yaml`](lightning_tracker.yaml)
-2. Copy to `/config/blueprints/automation/lightning_notification.yaml`
-3. Proceed to follow steps 2 - 4 above.
+2. Copy it to `/config/blueprints/automation/zacharyd3/lightning_tracker.yaml`
+   (blueprints live in a per-author subfolder - creating `zacharyd3/` is part of the step)
+3. Proceed to follow steps 2 - 5 above.
 
 ### Method 3: Beta Installation
 **!! [ONLY USE THE BETA IF YOU'VE ALSO UPDATED TO MY INTEGRATION](https://github.com/zacharyd3/homeassistant-blitzortung) !!**
@@ -68,20 +75,33 @@ A Home Assistant blueprint that sends rich notifications with maps when lightnin
   <summary>I'm aware this is a beta build and I've updated</summary>
   
 [Check the beta branch for installation instructions](https://github.com/zacharyd3/Blitz-LightningTracker/tree/beta)
+
+Note: the main blueprint now takes the area sensor as a setting, so you can point **Lightning Area Sensor** at the fork's own `sensor.<name>_lightning_area` and skip the REST sensor entirely.
 </details>
 
 ## ⚙️ Configuration
 
-### Required Settings:
-- **Lightning Distance Sensor** - Your Blitzortung distance sensor
-- **Lightning Area Sensor** - Sensor showing strike location name (Provided in sensors.yaml)
-- **Mobile Device** - Select from dropdown of mobile app devices
-- **Maximum Distance** - Distance in km to trigger notifications (default: 7.5km)
+### Blitzortung sensors:
+- **Lightning Distance Sensor** *(required)* - your Blitzortung distance sensor
+- **Lightning Azimuth Sensor** - adds the compass direction to the message
+- **Lightning Area Sensor** - adds the place name to the message
+- **Latest Strike Entity ID Sensor** - fallback source for the map coordinates
 
-### Optional Settings:
-- **Google Maps API Key** - For static map images
-- **Include Map Image** - Toggle map images on/off
-- **Cooldown Period** - Minutes between notifications (default: 1.5 min)
+### Notification:
+- **Maximum Distance** - notify below this distance, in your distance sensor's unit (default: 7.5)
+- **Notification Title** - default: "Lightning Strike Nearby!"
+- **Mobile Devices** - pick any number of companion-app devices
+- **Custom Notify Services** - comma-separated notify services, e.g. `notify.family_devices, notify.all_phones`
+
+### Additional options:
+- **Notification Channel / Timeout** - Android notification channel and auto-dismiss time
+- **Google Maps API Key** + **Include Map Image** - static map image in the notification
+- **Show Device Location on Map** - pins your first selected device and zooms to fit both points
+- **Only Notify for Closer Strikes** - suppress strikes that are further away than the last alert
+- **Closer-Strike Reset** - how long a quiet period has to be before that comparison starts over (default: 30 min)
+- **Last Distance Helper** - the `input_number` used for the comparison above
+- **Refresh Area Sensor Before Notifying** - leave on for the bundled REST sensor, off if your area sensor self-updates
+- **Cooldown Period** - minimum time between notifications (default: 1.5 min)
 
 ## 🔧 Blitzortung Integration Setup
 
@@ -94,34 +114,35 @@ If you haven't set up Blitzortung yet:
 
 ## 🛠️ Troubleshooting
 
+### No notifications at all?
+- Check **Settings > Automations > (your automation) > Traces** - the trace shows which condition stopped it
+- Make sure at least one **Mobile Device** or **Custom Notify Service** is set. If neither is, the automation writes a warning to the log instead of notifying
+- Custom notify services must exist. Check **Developer Tools > Actions** and search for `notify.`
+
+### Notifications stop after the first strike?
+- That was the old behaviour, caused by a `numeric_state` trigger only firing when the value *crosses* the threshold. The blueprint now triggers on every sensor update and filters by distance in a condition - re-import the blueprint if you are on an older copy
+
+### "Only Notify for Closer Strikes" went quiet forever?
+- It resets itself after the **Closer-Strike Reset** period (default 30 minutes without a notification), so a new storm always gets through. Lower that value if you want it to reset sooner
+
 ### REST Sensor Not Working?
-- Check that the coordinate sensors have valid data (not 0 or unknown)
+- The area sensor only calls Nominatim when the blueprint asks it to, so it stays "unknown" until the first strike
+- **Change the User-Agent** in the REST sensor to your name/project - Nominatim blocks generic agents
 - Verify internet connection for OpenStreetMap Nominatim API calls
-- The area sensor updates every hour (`scan_interval: 3600`) to avoid API rate limits
-- **Change the User-Agent** in the REST sensor to your name/project
-
-### Missing Sensors Error?
-- **Most common issue!** Make sure you've created the additional sensors in `configuration.yaml`
-- Restart Home Assistant after adding sensors
-- Check **Developer Tools > States** to verify sensors exist and have data
-
-### Sensors Have Different Names?
-- Your Blitzortung sensors might have different names than the examples
-- Check **Developer Tools > States** for entities starting with `sensor.blitzortung_`
-- Update the template sensors to match your actual entity names
+- If your integration provides its own area sensor, point the blueprint at that and delete the REST sensor
 
 ### No Map Images?
-- Verify your Google Maps API key is correct
-- Ensure "Maps Static API" is enabled in Google Cloud Console
-- Check that **Include Map Image** is enabled in blueprint config
+- Verify your Google Maps API key is correct and "Maps Static API" is enabled in Google Cloud Console
+- Check that **Include Map Image** is enabled in the blueprint config
+- The map needs strike coordinates. These come from the `lat`/`lon` attributes of your distance sensor, or from `sensor.latest_lightning_strike_entity_id` - check both in **Developer Tools > States**
 
 ### Wrong Device Selected?
-- The blueprint auto-generates the notification service from your device selection
-- Make sure your mobile device has the Home Assistant app installed and configured
+- The blueprint builds the notify service from the device name as `notify.mobile_app_<slugified name>`
+- If the device was renamed in Home Assistant, the companion app's service still uses the **original** name. Check **Developer Tools > Actions** for the real service name and use **Custom Notify Services** instead
 
 ### Sensors Not Found?
-- Ensure Blitzortung integration is working and sensors have states
-- Check sensor names match the pattern: `sensor.*_lightning_*`
+- Ensure the Blitzortung integration is working and its sensors have states
+- Check **Developer Tools > States** for entities starting with `sensor.` and containing `lightning`
 
 ## 🤝 Contributing
 
