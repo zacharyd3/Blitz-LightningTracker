@@ -1,36 +1,81 @@
+# Everything Blitz-LightningTracker needs, ready to paste at the end of your
+# configuration.yaml if you have never split your config into separate files.
+#
+# If you already have a `sensor:` or `input_number:` block, merge these entries
+# into it instead of adding a second one - Home Assistant only reads the first.
+
 sensor:
+  # Tracks the newest Blitzortung geo_location strike and re-publishes its
+  # coordinates as attributes, so the REST sensor below never has to guess.
   - platform: template
     sensors:
-      # Find latest strike
       latest_lightning_strike_entity_id:
         friendly_name: "Latest Lightning Strike Entity ID"
+        unique_id: latest_lightning_strike_entity_id
         value_template: >
-          {% set strikes = states.geo_location | selectattr('entity_id', 'search', 'geo_location.lightning_strike_') | sort(attribute='last_updated', reverse=true) | list %}
+          {% set strikes = states.geo_location
+             | selectattr('attributes.source', 'defined')
+             | selectattr('attributes.source', 'eq', 'blitzortung')
+             | sort(attribute='last_updated', reverse=true) | list %}
           {{ strikes[0].entity_id if strikes else 'none' }}
+        attribute_templates:
+          latitude: >
+            {% set strikes = states.geo_location
+               | selectattr('attributes.source', 'defined')
+               | selectattr('attributes.source', 'eq', 'blitzortung')
+               | sort(attribute='last_updated', reverse=true) | list %}
+            {{ strikes[0].attributes.latitude if strikes else none }}
+          longitude: >
+            {% set strikes = states.geo_location
+               | selectattr('attributes.source', 'defined')
+               | selectattr('attributes.source', 'eq', 'blitzortung')
+               | sort(attribute='last_updated', reverse=true) | list %}
+            {{ strikes[0].attributes.longitude if strikes else none }}
 
-  # Get real location names from coordinates
+  # Reverse-geocodes the latest strike into a place name.
+  #
+  # scan_interval is deliberately huge: the blueprint calls
+  # homeassistant.update_entity on this sensor right before it builds the
+  # notification, so it only ever hits Nominatim when there is actually a strike
+  # worth naming. That keeps you inside Nominatim's usage policy (max 1 req/s,
+  # no bulk querying) instead of polling it round the clock.
+  #
+  # CHANGE THE User-Agent BELOW to something that identifies you - Nominatim
+  # blocks generic and unidentifiable user agents.
   - platform: rest
     name: Latest Lightning Strike Area
+    unique_id: latest_lightning_strike_area
     resource_template: >-
-      https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat={{ state_attr(states('sensor.latest_lightning_strike_entity_id'), 'latitude') }}&lon={{ state_attr(states('sensor.latest_lightning_strike_entity_id'), 'longitude') }}
+      {%- set lat = state_attr('sensor.latest_lightning_strike_entity_id', 'latitude') -%}
+      {%- set lon = state_attr('sensor.latest_lightning_strike_entity_id', 'longitude') -%}
+      {%- if lat is not none and lon is not none -%}
+        https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=12&addressdetails=1&lat={{ lat }}&lon={{ lon }}
+      {%- else -%}
+        https://nominatim.openstreetmap.org/status.php?format=json
+      {%- endif -%}
     headers:
-      User-Agent: HomeAssistant/1.0
+      User-Agent: "HomeAssistant-BlitzLightningTracker/1.0 (you@example.com)"
+    timeout: 15
     value_template: >
-      {{ value_json.address.suburb
-         or value_json.address.city
-         or value_json.address.town
-         or value_json.address.village
-         or value_json.address.state
-         or value_json.display_name }}
-    scan_interval: 3600
-    
+      {% set address = value_json.get('address', {}) if value_json is mapping else {} %}
+      {{ (address.suburb
+          or address.city
+          or address.town
+          or address.village
+          or address.hamlet
+          or address.municipality
+          or address.county
+          or address.state
+          or value_json.get('display_name')
+          or 'Unknown') | truncate(250, true, '') }}
+    scan_interval: 86400
+
 input_number:
-  # Track previously notified strike distance
   lightning_last_distance:
-      name: Last Lightning Distance
-      initial: 1000
-      min: 0
-      max: 1000
-      step: 0.1
-      unit_of_measurement: "km"
-      mode: box
+    name: Last Lightning Distance
+    icon: mdi:flash-alert
+    initial: 1000
+    min: 0
+    max: 1000
+    step: 0.1
+    mode: box

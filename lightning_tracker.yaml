@@ -1,73 +1,114 @@
 blueprint:
   name: Blitz-LightningTracker
   description: |
-    Send a notification with map when lightning strikes within a specified distance.
-    Designed specifically for the Blitzortung Lightning Detector integration.
-    Includes strike location, direction, and interactive map view.
-    Automatically uses your system's configured units (km or miles).
+    Send a rich notification with a map when lightning strikes within a specified
+    distance. Designed for the Blitzortung Lightning Detector integration.
+
+    Includes the strike distance, compass direction, nearest place name and an
+    optional Google Static Maps image showing the strike (and, optionally, your
+    device) on the map.
+
+    Distances use whatever unit your distance sensor reports (km or mi), so the
+    value you enter for "Maximum Distance" must be in that same unit.
   domain: automation
   source_url: https://github.com/zacharyd3/Blitz-LightningTracker/blob/main/lightning_tracker.yaml
+  homeassistant:
+    min_version: "2024.10.0"
   input:
-    notification_title:
-      name: Notification Title
-      description: Title for the notification
-      default: "Lightning Strike Nearby!"
-      selector:
-        text:
+    sensors:
+      name: Blitzortung sensors
+      icon: mdi:flash
+      description: The sensors this automation watches.
+      input:
+        lightning_distance_sensor:
+          name: Lightning Distance Sensor
+          description: Blitzortung distance sensor (usually ends with '_distance').
+          selector:
+            entity:
+              integration: blitzortung
+              domain: sensor
+        lightning_azimuth_sensor:
+          name: Lightning Azimuth Sensor
+          description: >
+            Optional. Blitzortung azimuth sensor (usually ends with '_azimuth').
+            When set, the compass direction of the strike is added to the message.
+          default: ""
+          selector:
+            entity:
+              integration: blitzortung
+              domain: sensor
+        lightning_area_sensor:
+          name: Lightning Area Sensor
+          description: >
+            Optional. A sensor whose state is the place name of the latest strike.
+            Use `sensor.latest_lightning_strike_area` from the bundled sensors.yaml,
+            or the Blitzortung "Lightning area" sensor if your integration provides
+            one. Leave empty to omit place names from the notification.
+          default: sensor.latest_lightning_strike_area
+          selector:
+            entity:
+              domain: sensor
+        latest_strike_entity_sensor:
+          name: Latest Strike Entity ID Sensor
+          description: >
+            Optional. The helper sensor whose state is the entity_id of the most
+            recent `geo_location` strike (from the bundled sensors.yaml). Used as a
+            fallback for the strike coordinates when the distance sensor does not
+            expose `lat`/`lon` attributes.
+          default: sensor.latest_lightning_strike_entity_id
+          selector:
+            entity:
+              domain: sensor
     max_distance:
-      name: Maximum Distance (km)
-      description: Maximum distance in kilometers to trigger notification
+      name: Maximum Distance
+      description: >
+        Notify when a strike is closer than this. Uses the same unit as your
+        distance sensor (km for metric systems, mi for imperial).
       default: 7.5
       selector:
         number:
           min: 1
-          max: 50
+          max: 100
           step: 0.25
-          unit_of_measurement: km
-    lightning_distance_sensor:
-      name: Lightning Distance Sensor
-      description: Blitzortung distance sensor (usually ends with '_distance')
+          mode: box
+    notification_title:
+      name: Notification Title
+      description: Title for the notification.
+      default: "Lightning Strike Nearby!"
       selector:
-        entity:
-          integration: blitzortung
-    lightning_azimuth_sensor:
-      name: Lightning Azimuth Sensor  
-      description: Blitzortung azimuth/direction sensor (usually ends with '_azimuth')
-      selector:
-        entity:
-          integration: blitzortung
+        text:
     notify_devices:
       name: Mobile Devices
-      description: Select multiple phones or tablets with the mobile app installed
+      description: Phones or tablets with the Home Assistant app installed.
       default: []
       selector:
         device:
           integration: mobile_app
           multiple: true
     custom_notify_service:
-      name: Custom Notify Service
-      description: |
-        Enter one or more custom notify services (e.g., notify.family_devices, notify.all_phones).
-        Must start with 'notify.'
-      default: "notify.family_devices"
+      name: Custom Notify Services
+      description: >
+        Optional. One or more notify services, comma separated
+        (e.g. `notify.family_devices, notify.all_phones`). Leave empty if you only
+        use the device picker above.
+      default: ""
       selector:
         text:
     advanced:
       name: Additional options
       icon: mdi:cog
-      description: Configure optional Features
+      description: Optional features and fine tuning.
       collapsed: true
       input:
         notification_channel:
           name: Notification Channel
-          description: Notification channel for Android's notification system
+          description: Android notification channel. Leave empty to use the default channel.
           default: ""
           selector:
             text:
-              type: text
         notification_timeout:
           name: Notification Timeout (minutes)
-          description: Time before Android automatically clears the notification
+          description: Time before Android automatically clears the notification.
           default: 10
           selector:
             number:
@@ -87,139 +128,288 @@ blueprint:
               type: password
         include_map_image:
           name: Include Map Image
-          description: Include a static map image in the notification (requires API key)
+          description: Include a static map image in the notification (requires an API key).
           default: false
           selector:
             boolean:
         show_device_location:
           name: Show Device Location on Map
-          description: Show your device's location as a blue pin on the map image
+          description: >
+            Also pin the first selected mobile device on the map image, and zoom the
+            map to fit both it and the strike.
           default: true
           selector:
             boolean:
         only_notify_closer_strikes:
           name: Only Notify for Closer Strikes
-          description: Only send notifications when lightning strikes are getting closer than the last notification
+          description: >
+            Only notify when a strike is closer than the last one you were notified
+            about. The comparison resets after the quiet period below, so a new storm
+            always gets through.
           default: false
+          selector:
+            boolean:
+        closer_reset_minutes:
+          name: Closer-Strike Reset (minutes)
+          description: >
+            How long without a notification before "Only Notify for Closer Strikes"
+            starts over. Only used when that option is on.
+          default: 30
+          selector:
+            number:
+              min: 5
+              max: 720
+              step: 5
+              unit_of_measurement: minutes
+        last_distance_helper:
+          name: Last Distance Helper
+          description: >
+            The `input_number` used to remember the last notified distance. Only used
+            when "Only Notify for Closer Strikes" is on.
+          default: input_number.lightning_last_distance
+          selector:
+            entity:
+              domain: input_number
+        refresh_area_sensor:
+          name: Refresh Area Sensor Before Notifying
+          description: >
+            Force an update of the area sensor before building the message. Keep this
+            on for the bundled REST sensor; turn it off if your area sensor updates
+            itself.
+          default: true
           selector:
             boolean:
         cooldown_minutes:
           name: Cooldown Period (minutes)
-          description: Minimum time between notifications to avoid spam. The minimum is 0.5 min. due to trying to keep within the rate limit of openstreetmaps.
+          description: >
+            Minimum time between notifications, to avoid spam and to stay inside the
+            OpenStreetMap Nominatim rate limit.
           default: 1.5
           selector:
             number:
               min: 0.5
-              max: 10
+              max: 60
               step: 0.5
               unit_of_measurement: minutes
-        
-
-alias: "⚡ Lightning Nearby - Blitz-LightningTracker"
-description: "Notify if lightning strikes within specified distance"
-use_blueprint:
-  path: lightning_notification.yaml
 
 triggers:
-  - entity_id: !input lightning_distance_sensor
-    below: !input max_distance
-    trigger: numeric_state
+  # A state trigger fires on every strike the sensor reports, not just the first
+  # one to cross the threshold (a numeric_state trigger only fires on the crossing).
+  - trigger: state
+    entity_id: !input lightning_distance_sensor
 
 variables:
-  input_only_notify_closer_strikes: !input only_notify_closer_strikes
-  input_lightning_distance_sensor: !input lightning_distance_sensor
+  distance_sensor: !input lightning_distance_sensor
+  azimuth_sensor: !input lightning_azimuth_sensor
+  area_sensor: !input lightning_area_sensor
+  strike_entity_sensor: !input latest_strike_entity_sensor
+  max_distance: !input max_distance
+  only_closer: !input only_notify_closer_strikes
+  closer_reset_minutes: !input closer_reset_minutes
+  last_distance_helper: !input last_distance_helper
+
+  strike_distance: "{{ states(distance_sensor) | float(-1) }}"
+  distance_unit: "{{ state_attr(distance_sensor, 'unit_of_measurement') or 'km' }}"
 
 conditions:
-  
-
-actions:
   - condition: template
-    value_template: |
-      {%- if not input_only_notify_closer_strikes -%}
+    alias: The sensor reports a usable distance inside the configured range
+    value_template: >-
+      {{ strike_distance >= 0 and strike_distance < max_distance }}
+
+  - condition: template
+    alias: Honour "only notify for closer strikes"
+    value_template: >-
+      {%- if not only_closer -%}
         true
       {%- else -%}
-        {%- set current_distance = states(input_lightning_distance_sensor) | float -%}
-        {%- set last_distance = states('input_number.lightning_last_distance') | float(999) -%}
-        {{ current_distance < last_distance }}
+        {%- set last_run = this.attributes.last_triggered | default(none, true) -%}
+        {%- set quiet_for = 999999 if last_run is none
+              else (now() - last_run).total_seconds() -%}
+        {%- if quiet_for > closer_reset_minutes * 60 -%}
+          true
+        {%- else -%}
+          {{ strike_distance < states(last_distance_helper) | float(999999) }}
+        {%- endif -%}
       {%- endif -%}
-  # Setup base variables (also nice for troubleshooting)
+
+actions:
   - variables:
-      input_lightning_distance_sensor: !input lightning_distance_sensor
-      input_lightning_distance: "{{ states(input_lightning_distance_sensor) }}"
-      raw_devices: !input notify_devices
-      input_custom_notify_service: !input custom_notify_service
-      # Build notification targets based on selected method
-      notification_targets: >
-          [
-            {% for device in raw_devices %}
-              "notify.mobile_app_{{ device_attr(device, 'name') | string | lower | replace(' ', '_') | replace("'", '') | replace('`', '') | replace('"', '') | trim }}"
-              {% if not loop.last %},{% endif %}
-            {% endfor %}
+      refresh_area: !input refresh_area_sensor
 
-            {% if raw_devices|length > 0 %}
-              ,
-            {% endif %}
+  # Refresh the area sensor (the bundled REST sensor is polled on demand) so the
+  # place name in the message matches this strike.
+  - if:
+      - condition: template
+        value_template: "{{ refresh_area and area_sensor not in ['', none] }}"
+    then:
+      - action: homeassistant.update_entity
+        continue_on_error: true
+        target:
+          entity_id: "{{ area_sensor }}"
 
-            {% for service in input_custom_notify_service.split(',') if service|trim != '' %}
-              "{{ service|trim }}"
-              {% if not loop.last %},{% endif %}
-            {% endfor %}
-          ]
-      # Get device location for map (use first device if multiple selected)
-      primary_device: "{{ raw_devices[0] if raw_devices|length > 0 else None }}"
-      device_tracker_entity: "{{ device_entities(primary_device) | select('match', 'device_tracker') | first }}"
-      device_latitude: "{{ state_attr(device_tracker_entity, 'latitude') }}"
-      device_longitude: "{{ state_attr(device_tracker_entity, 'longitude') }}"
-      input_notification_title: !input notification_title
-      input_notification_channel: !input notification_channel
-      input_notification_timeout: !input notification_timeout
-      input_google_maps_api_key: !input google_maps_api_key
-      input_include_map_image: !input include_map_image
-      input_show_device_location: !input show_device_location
-      input_only_notify_closer_strikes: !input only_notify_closer_strikes
-      # Get the correct unit from the distance sensor
-      distance_unit: "{{ state_attr(input_lightning_distance_sensor, 'unit_of_measurement') | default('km') }}"
+  - variables:
+      notification_title: !input notification_title
+      notification_channel: !input notification_channel
+      notification_timeout: !input notification_timeout
+      google_maps_api_key: !input google_maps_api_key
+      include_map_image: !input include_map_image
+      show_device_location: !input show_device_location
+      notify_devices: !input notify_devices
+      custom_notify_service: !input custom_notify_service
 
-  # Update the strike area sensor
-  - action: homeassistant.update_entity
-    metadata: {}
-    data:
-      entity_id: sensor.latest_lightning_strike_area
+      # notify.mobile_app_<slug of the device name the app registered with>.
+      # slugify handles spaces, punctuation, accents and repeated separators.
+      notify_targets: >-
+        {%- set ns = namespace(targets=[]) -%}
+        {%- for device in notify_devices -%}
+          {%- set name = device_attr(device, 'name') -%}
+          {%- if name -%}
+            {%- set ns.targets = ns.targets + ['notify.mobile_app_' ~ (name | slugify)] -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {%- for service in custom_notify_service.split(',') -%}
+          {%- if service | trim -%}
+            {%- set ns.targets = ns.targets + [service | trim] -%}
+          {%- endif -%}
+        {%- endfor -%}
+        {{ ns.targets | unique | list }}
 
-  # Send notifications to all targets
-  - repeat:
-      for_each: "{{ notification_targets }}"
-      sequence:
-        - action: '{{ repeat.item }}'
-          data:
-            title: '{{ input_notification_title }}'
-            message: >
-              Strike detected {{ input_lightning_distance }} {{ distance_unit }} away in {{
-              states('sensor.latest_lightning_strike_area') }}.
-            data:
-              notification_icon: mdi:flash
-              channel: "{{ input_notification_channel }}"
-              timeout: "{{ input_notification_timeout * 60 | int }}"
-              ttl: 0
-              priority: high
-              clickAction: >-
-                https://maps.google.com/?q={{ state_attr(states('sensor.latest_lightning_strike_entity_id'), 'latitude') }},{{ state_attr(states('sensor.latest_lightning_strike_entity_id'), 'longitude') }}
-              image: >
-                {%- if input_include_map_image and input_google_maps_api_key != "" -%}
-                https://maps.googleapis.com/maps/api/staticmap?zoom=auto&size=400x200&markers=color:yellow%7Csize:mid%7C{{ state_attr(states('sensor.latest_lightning_strike_entity_id'), 'latitude') }},{{ state_attr(states('sensor.latest_lightning_strike_entity_id'), 'longitude') }}
-                {%- if input_show_device_location -%}
-                &markers=color:blue%7Csize:mid%7C{{ device_latitude }},{{ device_longitude }}
-                {%- endif -%}
-                &key={{ input_google_maps_api_key }}
-                {%- endif -%}
+      # Strike coordinates: prefer the distance sensor's own lat/lon attributes
+      # (always in sync with the value that triggered us), fall back to the newest
+      # geo_location strike entity.
+      fallback_strike_entity: >-
+        {{ states(strike_entity_sensor) if strike_entity_sensor not in ['', none] else '' }}
+      strike_lat: >-
+        {%- set from_sensor = state_attr(distance_sensor, 'lat') -%}
+        {%- if from_sensor is not none -%}
+          {{ from_sensor }}
+        {%- elif fallback_strike_entity -%}
+          {{ state_attr(fallback_strike_entity, 'latitude') }}
+        {%- endif -%}
+      strike_lon: >-
+        {%- set from_sensor = state_attr(distance_sensor, 'lon') -%}
+        {%- if from_sensor is not none -%}
+          {{ from_sensor }}
+        {%- elif fallback_strike_entity -%}
+          {{ state_attr(fallback_strike_entity, 'longitude') }}
+        {%- endif -%}
+      has_strike_coords: >-
+        {{ strike_lat not in ['', 'None', none] and strike_lon not in ['', 'None', none] }}
 
-  # Store the current distance for next comparison
-  - service: input_number.set_value
-    data:
-      entity_id: input_number.lightning_last_distance
-      value: "{{ input_lightning_distance | float }}"
-  
+      # First selected device, used for the optional blue "you are here" pin.
+      device_tracker_entity: >-
+        {%- if notify_devices | count > 0 -%}
+          {%- set trackers = device_entities(notify_devices[0])
+                | select('match', 'device_tracker') | list -%}
+          {{ trackers[0] if trackers else '' }}
+        {%- endif -%}
+      device_lat: "{{ state_attr(device_tracker_entity, 'latitude') if device_tracker_entity else '' }}"
+      device_lon: "{{ state_attr(device_tracker_entity, 'longitude') if device_tracker_entity else '' }}"
+      has_device_coords: >-
+        {{ show_device_location
+           and device_lat not in ['', 'None', none]
+           and device_lon not in ['', 'None', none] }}
+
+      strike_direction: >-
+        {%- set azimuth = states(azimuth_sensor) | float(-1) if azimuth_sensor not in ['', none] else -1 -%}
+        {%- if azimuth >= 0 -%}
+          {%- set points = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
+                            'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'] -%}
+          {{ points[((azimuth / 22.5) | round(0) | int) % 16] }}
+        {%- endif -%}
+      strike_area: >-
+        {%- set area = states(area_sensor) if area_sensor not in ['', none] else '' -%}
+        {%- if area not in ['', 'unknown', 'unavailable', 'none', 'None', 'Unknown',
+                            'No recent lightning', 'Unknown Location',
+                            'Geocoding Disabled', 'Geocoding Failed'] -%}
+          {{ area }}
+        {%- endif -%}
+
+      map_link: >-
+        {%- if has_strike_coords -%}
+          https://www.google.com/maps/search/?api=1&query={{ strike_lat }},{{ strike_lon }}
+        {%- endif -%}
+
+      # Google Static Maps: with two markers the API auto-fits the viewport, so no
+      # zoom/center is sent. With a single marker an explicit center+zoom is required.
+      # ("zoom=auto" is not a valid value and makes the API return HTTP 400.)
+      map_image_url: >-
+        {%- if include_map_image and google_maps_api_key and has_strike_coords -%}
+          {%- set base = 'https://maps.googleapis.com/maps/api/staticmap?size=640x400&scale=2' -%}
+          {%- set strike_pin = '&markers=color:yellow%7Csize:mid%7Clabel:L%7C'
+                ~ strike_lat ~ ',' ~ strike_lon -%}
+          {%- if has_device_coords -%}
+            {{ base }}{{ strike_pin }}&markers=color:blue%7Csize:mid%7Clabel:Y%7C{{ device_lat }},{{ device_lon }}&key={{ google_maps_api_key }}
+          {%- else -%}
+            {{ base }}&center={{ strike_lat }},{{ strike_lon }}&zoom=11{{ strike_pin }}&key={{ google_maps_api_key }}
+          {%- endif -%}
+        {%- endif -%}
+
+      # Built as a dict so empty options are omitted instead of being sent as "".
+      push_payload: >-
+        {%- set payload = {
+              'notification_icon': 'mdi:flash',
+              'ttl': 0,
+              'priority': 'high',
+              'tag': 'blitz_lightning_tracker',
+              'group': 'lightning',
+              'timeout': (notification_timeout | int(10)) * 60,
+              'push': {'interruption-level': 'time-sensitive'}
+            } -%}
+        {%- if notification_channel | trim -%}
+          {%- set payload = dict(payload, channel=notification_channel | trim) -%}
+        {%- endif -%}
+        {%- if map_link -%}
+          {%- set payload = dict(payload, clickAction=map_link, url=map_link) -%}
+        {%- endif -%}
+        {%- if map_image_url -%}
+          {%- set payload = dict(payload, image=map_image_url) -%}
+        {%- endif -%}
+        {{ payload }}
+
+  - if:
+      - condition: template
+        value_template: "{{ notify_targets | count == 0 }}"
+    then:
+      - action: system_log.write
+        data:
+          level: warning
+          logger: blitz_lightning_tracker
+          message: >-
+            Lightning strike detected but no notification target is configured.
+            Pick a mobile device or enter a custom notify service in the blueprint.
+    else:
+      - repeat:
+          for_each: "{{ notify_targets }}"
+          sequence:
+            - action: "{{ repeat.item }}"
+              continue_on_error: true
+              data:
+                title: "{{ notification_title }}"
+                message: >-
+                  Strike detected {{ strike_distance }} {{ distance_unit }} away{%
+                  if strike_direction %} to the {{ strike_direction }}{% endif %}{%
+                  if strike_area %} in {{ strike_area }}{% endif %}.
+                data: "{{ push_payload }}"
+
+  # Remember this distance, clamped to the helper's own min/max so set_value
+  # cannot fail on an out-of-range value.
+  - if:
+      - condition: template
+        value_template: "{{ only_closer }}"
+    then:
+      - action: input_number.set_value
+        continue_on_error: true
+        target:
+          entity_id: "{{ last_distance_helper }}"
+        data:
+          value: >-
+            {{ [[strike_distance, state_attr(last_distance_helper, 'max') | float(1000)] | min,
+                 state_attr(last_distance_helper, 'min') | float(0)] | max }}
+
   - delay:
       minutes: !input cooldown_minutes
 
 mode: single
+max_exceeded: silent
