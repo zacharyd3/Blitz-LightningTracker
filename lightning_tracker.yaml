@@ -208,6 +208,22 @@ blueprint:
           default: true
           selector:
             boolean:
+        stored_traces:
+          name: Stored Traces
+          description: >
+            How many past runs to keep under Settings > Automations > Traces.
+            Home Assistant's default is 5, which one storm fills in seconds -
+            mostly with runs that stopped at a condition, pushing out the run
+            that actually notified. Raising this keeps the interesting one
+            around long enough to open it. Traces are held in memory and on
+            disk, so this is a trade against a bit of both.
+          default: 25
+          selector:
+            number:
+              min: 5
+              max: 100
+              step: 5
+              mode: box
         cooldown_minutes:
           name: Cooldown Period (minutes)
           description: >
@@ -268,7 +284,8 @@ actions:
 
   # Refresh the area sensor (the bundled REST sensor is polled on demand) so the
   # place name in the message matches this strike.
-  - if:
+  - alias: Refresh the area sensor
+    if:
       - condition: template
         value_template: "{{ refresh_area and area_sensor not in ['', none] }}"
     then:
@@ -436,7 +453,8 @@ actions:
         {%- endif -%}
         {{ payload }}
 
-  - if:
+  - alias: Send the notifications
+    if:
       - condition: template
         value_template: "{{ notify_targets | count == 0 }}"
     then:
@@ -463,7 +481,8 @@ actions:
 
   # Remember this distance, clamped to the helper's own min/max so set_value
   # cannot fail on an out-of-range value.
-  - if:
+  - alias: Remember this distance for the next comparison
+    if:
       - condition: template
         value_template: "{{ only_closer }}"
     then:
@@ -476,8 +495,12 @@ actions:
             {{ [[strike_distance, state_attr(last_distance_helper, 'max') | float(1000)] | min,
                  state_attr(last_distance_helper, 'min') | float(0)] | max }}
 
-  - delay:
+  - alias: Cooldown before the next notification
+    delay:
       minutes: !input cooldown_minutes
 
 mode: single
 max_exceeded: silent
+
+trace:
+  stored_traces: !input stored_traces

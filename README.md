@@ -108,6 +108,7 @@ You can then skip the REST sensor in [`sensors.yaml`](sensors.yaml) entirely. Th
 - **Closer-Strike Reset** - how long a quiet period has to be before that comparison starts over (default: 30 min)
 - **Last Distance Helper** - the `input_number` used for the comparison above
 - **Refresh Area Sensor Before Notifying** - leave on for the bundled REST sensor, off if your area sensor self-updates
+- **Stored Traces** - how many past runs to keep under **Traces** (default: 25; Home Assistant's own default is 5, which a storm fills in seconds)
 - **Cooldown Period** - minimum time between notifications (default: 1.5 min)
 
 ## 🔧 Blitzortung Integration Setup
@@ -123,6 +124,7 @@ If you haven't set up Blitzortung yet:
 
 ### No notifications at all?
 - Check **Settings > Automations > (your automation) > Traces** - the trace shows which condition stopped it
+- During a storm the trace list fills with runs that stopped at a condition, and the run that actually notified gets pushed out. Raise **Stored Traces** if the one you want is gone before you can open it
 - Make sure at least one **Mobile Device** or **Custom Notify Service** is set. If neither is, the automation writes a warning to the log instead of notifying
 - Custom notify services must exist. Check **Developer Tools > Actions** and search for `notify.`
 
