@@ -26,10 +26,10 @@ A Home Assistant blueprint that sends rich notifications with maps when lightnin
   - `sensor.<name>_lightning_area` if your Blitzortung integration provides one (the fork does)
 - **`sensor.latest_lightning_strike_entity_id`** from [`sensors.yaml`](sensors.yaml) - only used as a fallback for the map coordinates if your distance sensor has no `lat`/`lon` attributes
 - **`input_number.lightning_last_distance`** from [`input_number.yaml`](input_number.yaml) - only needed if you turn on *Only Notify for Closer Strikes*
-- **Google Maps Static API key** - for map images in notifications
-  - Get one at: https://console.cloud.google.com/apis/credentials
-  - Enable "Maps Static API"
-  - Free tier should be more than enough
+- **A static map provider** - for map images in notifications. Tapping the notification opens Google Maps either way; this is only for the picture embedded in it.
+  - **[Geoapify](https://myprojects.geoapify.com)** - no credit card needed, 3,000 credits/day free. Sign up, create a project, copy the API key.
+  - **[Google Maps Static API](https://console.cloud.google.com/apis/credentials)** - enable "Maps Static API". Note that Google Cloud requires a billing account with a card on file even to stay inside the free tier, and prepaid cards are often rejected.
+  - **Custom** - any other provider, via a URL template (see below).
 
 > **Units:** the blueprint uses whatever unit your distance sensor reports. If Home Assistant is set to imperial, the sensor reports miles, so **Maximum Distance** is in miles too.
 
@@ -99,7 +99,10 @@ You can then skip the REST sensor in [`sensors.yaml`](sensors.yaml) entirely. Th
 
 ### Additional options:
 - **Notification Channel / Timeout** - Android notification channel and auto-dismiss time
-- **Google Maps API Key** + **Include Map Image** - static map image in the notification
+- **Include Map Image** - static map image in the notification
+- **Static Map Provider** - `Google`, `Geoapify`, or `Custom`
+- **Static Map API Key** - the key for whichever provider you picked
+- **Custom Map URL Template** - only for `Custom`. Placeholders `{lat}`, `{lon}`, `{device_lat}`, `{device_lon}`, `{key}` are substituted before sending, e.g. `https://example.com/map?c={lat},{lon}&k={key}`
 - **Show Device Location on Map** - pins your first selected device and zooms to fit both points
 - **Only Notify for Closer Strikes** - suppress strikes that are further away than the last alert
 - **Closer-Strike Reset** - how long a quiet period has to be before that comparison starts over (default: 30 min)
@@ -136,9 +139,10 @@ If you haven't set up Blitzortung yet:
 - If your integration provides its own area sensor, point the blueprint at that and delete the REST sensor
 
 ### No Map Images?
-- Verify your Google Maps API key is correct and "Maps Static API" is enabled in Google Cloud Console
-- Check that **Include Map Image** is enabled in the blueprint config
+- Check that **Include Map Image** is on and that **Static Map Provider** matches the key you pasted - a Geoapify key in Google mode (or vice versa) fails silently, since the phone fetches the image and never reports the error back
 - The map needs strike coordinates. These come from the `lat`/`lon` attributes of your distance sensor, or from `sensor.latest_lightning_strike_entity_id` - check both in **Developer Tools > States**
+- Fastest way to debug: copy the `image` URL out of the automation trace (**Traces > Changed Variables > map_image_url**) and open it in a browser. The provider's error comes back as readable text
+- Google only: confirm billing is enabled on the Cloud project and that it is the **Maps Static API** that's enabled, not Maps JavaScript or Maps Embed
 
 ### Wrong Device Selected?
 - The blueprint builds the notify service from the device name as `notify.mobile_app_<slugified name>`
