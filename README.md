@@ -69,15 +69,19 @@ A Home Assistant blueprint that sends rich notifications with maps when lightnin
    (blueprints live in a per-author subfolder - creating `zacharyd3/` is part of the step)
 3. Proceed to follow steps 2 - 5 above.
 
-### Method 3: Beta Installation
-**!! [ONLY USE THE BETA IF YOU'VE ALSO UPDATED TO MY INTEGRATION](https://github.com/zacharyd3/homeassistant-blitzortung) !!**
-<details>
-  <summary>I'm aware this is a beta build and I've updated</summary>
-  
-[Check the beta branch for installation instructions](https://github.com/zacharyd3/Blitz-LightningTracker/tree/beta)
+## 🔀 Using the custom integration fork
 
-Note: the main blueprint now takes the area sensor as a setting, so you can point **Lightning Area Sensor** at the fork's own `sensor.<name>_lightning_area` and skip the REST sensor entirely.
-</details>
+[My fork of the Blitzortung integration](https://github.com/zacharyd3/homeassistant-blitzortung) can follow a device tracker instead of a fixed location, and ships its own geocoded area sensor. If you run it, configure the blueprint like this:
+
+| Setting | Value |
+|---|---|
+| **Lightning Area Sensor** | `sensor.<name>_lightning_area` (the integration's own) |
+| **Latest Strike Entity ID Sensor** | leave empty - the distance sensor's `lat`/`lon` attributes cover the map |
+| **Refresh Area Sensor Before Notifying** | off - that sensor updates itself |
+
+You can then skip the REST sensor in [`sensors.yaml`](sensors.yaml) entirely. The only helper you might still want is [`input_number.yaml`](input_number.yaml), and only if you turn on *Only Notify for Closer Strikes*.
+
+> This setup used to live on a separate `beta` branch. It doesn't need one any more - the three settings above are the whole difference - so that branch has been retired. Its final state is preserved on the [`archive/beta`](https://github.com/zacharyd3/Blitz-LightningTracker/tree/archive/beta) branch.
 
 ## ⚙️ Configuration
 
